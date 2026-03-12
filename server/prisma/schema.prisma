@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String          @id @default(uuid())
+  name          String
+  email         String          @unique
+  password_hash String
+  created_at    DateTime        @default(now())
+
+  created_groups Group[]        @relation("GroupCreator")
+  memberships    GroupMember[]
+  paid_expenses  Expense[]      @relation("ExpensePayer")
+  splits         ExpenseSplit[]
+
+  @@map("users")
+}
+
+model Group {
+  id         String        @id @default(uuid())
+  name       String
+  created_by String
+  created_at DateTime      @default(now())
+
+  creator    User          @relation("GroupCreator", fields: [created_by], references: [id])
+  members    GroupMember[]
+  expenses   Expense[]
+
+  @@map("groups")
+}
+
+model GroupMember {
+  id       String @id @default(uuid())
+  group_id String
+  user_id  String
+
+  group    Group  @relation(fields: [group_id], references: [id])
+  user     User   @relation(fields: [user_id], references: [id])
+
+  @@unique([group_id, user_id])
+  @@map("group_members")
+}
+
+model Expense {
+  id          String         @id @default(uuid())
+  group_id    String
+  payer_id    String
+  amount      Decimal        @db.Decimal(10, 2)
+  description String
+  created_at  DateTime       @default(now())
+
+  group       Group          @relation(fields: [group_id], references: [id])
+  payer       User           @relation("ExpensePayer", fields: [payer_id], references: [id])
+  splits      ExpenseSplit[]
+
+  @@map("expenses")
+}
+
+model ExpenseSplit {
+  id          String  @id @default(uuid())
+  expense_id  String
+  user_id     String
+  amount_owed Decimal @db.Decimal(10, 2)
+
+  expense     Expense @relation(fields: [expense_id], references: [id])
+  user        User    @relation(fields: [user_id], references: [id])
+
+  @@map("expense_splits")
+}
