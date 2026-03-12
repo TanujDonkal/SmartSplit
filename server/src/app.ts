@@ -3,6 +3,7 @@ import cors from "cors";
 import healthRouter from "./routes/health";
 import authRouter from "./routes/auth";
 import groupsRouter from "./routes/groups";
+import expensesRouter from "./routes/expenses";
 
 const app = express();
 
@@ -14,5 +15,6 @@ app.use(express.json());
 app.use("/api/health", healthRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/groups", groupsRouter);
+app.use("/api/expenses", expensesRouter);
 
 export default app;
