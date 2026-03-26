@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 
 interface AuthContextType {
   token: string | null;
@@ -48,4 +49,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export const useAuth = () => useContext(AuthContext);
+export { AuthContext };
