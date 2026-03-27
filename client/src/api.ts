@@ -48,6 +48,17 @@ export interface Expense {
   }>;
 }
 
+export interface Balance {
+  user: AuthUser;
+  balance: number;
+}
+
+export interface Settlement {
+  from: AuthUser;
+  to: AuthUser;
+  amount: number;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('token');
   const headers: Record<string, string> = {
@@ -95,6 +106,9 @@ export const api = {
       body: JSON.stringify(data),
     }),
   getGroupExpenses: (groupId: string) => request<Expense[]>(`/expenses/${groupId}`),
+  getGroupBalances: (groupId: string) => request<Balance[]>(`/groups/${groupId}/balances`),
+  getGroupSettlements: (groupId: string) =>
+    request<Settlement[]>(`/groups/${groupId}/settlements`),
   addExpense: (data: { group_id: string; amount: number; description: string }) =>
     request<Expense>('/expenses', {
       method: 'POST',

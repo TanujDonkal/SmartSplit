@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api';
-import type { Expense, Group } from '../api';
+import type { Balance, Expense, Group, Settlement } from '../api';
 import { useAuth } from '../context/useAuth';
 
 export default function GroupDetail() {
@@ -10,6 +10,8 @@ export default function GroupDetail() {
   const { user } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [balances, setBalances] = useState<Balance[]>([]);
+  const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [memberEmail, setMemberEmail] = useState('');
   const [expenseForm, setExpenseForm] = useState({
     description: '',
@@ -32,12 +34,16 @@ export default function GroupDetail() {
       setError('');
 
       try {
-        const [groupList, groupExpenses] = await Promise.all([
+        const [groupList, groupExpenses, groupBalances, groupSettlements] = await Promise.all([
           api.getGroups(),
           api.getGroupExpenses(groupId),
+          api.getGroupBalances(groupId),
+          api.getGroupSettlements(groupId),
         ]);
         setGroups(groupList);
         setExpenses(groupExpenses);
+        setBalances(groupBalances);
+        setSettlements(groupSettlements);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unable to load group details');
       } finally {
@@ -87,6 +93,12 @@ export default function GroupDetail() {
         ),
       );
       setMemberEmail('');
+      const [groupBalances, groupSettlements] = await Promise.all([
+        api.getGroupBalances(groupId),
+        api.getGroupSettlements(groupId),
+      ]);
+      setBalances(groupBalances);
+      setSettlements(groupSettlements);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to add member');
     } finally {
@@ -133,6 +145,12 @@ export default function GroupDetail() {
         description: '',
         amount: '',
       });
+      const [groupBalances, groupSettlements] = await Promise.all([
+        api.getGroupBalances(groupId),
+        api.getGroupSettlements(groupId),
+      ]);
+      setBalances(groupBalances);
+      setSettlements(groupSettlements);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to add expense');
     } finally {
@@ -203,8 +221,92 @@ export default function GroupDetail() {
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+      <div className="grid gap-6 xl:grid-cols-[0.82fr_1.18fr]">
         <div className="space-y-6">
+          <section className="space-y-4 rounded-[2rem] border border-white/10 bg-white/8 p-6">
+            <div>
+              <h2 className="text-2xl font-semibold">Balances</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Positive balances should receive money. Negative balances still owe the group.
+              </p>
+            </div>
+
+            {balances.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-white/15 bg-slate-950/20 p-4 text-sm text-slate-400">
+                No balances yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {balances.map((entry) => {
+                  const positive = entry.balance > 0;
+                  const neutral = Math.abs(entry.balance) < 0.01;
+
+                  return (
+                    <div
+                      key={entry.user.id}
+                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/30 px-4 py-3"
+                    >
+                      <div>
+                        <p className="font-medium text-slate-100">{entry.user.name}</p>
+                        <p className="text-sm text-slate-400">{entry.user.email}</p>
+                      </div>
+                      <div className="text-right">
+                        <p
+                          className={`text-lg font-semibold ${
+                            neutral
+                              ? 'text-slate-200'
+                              : positive
+                                ? 'text-emerald-300'
+                                : 'text-amber-300'
+                          }`}
+                        >
+                          {entry.balance > 0 ? '+' : ''}
+                          ${Math.abs(entry.balance).toFixed(2)}
+                        </p>
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                          {neutral ? 'Settled' : positive ? 'Gets back' : 'Owes'}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <section className="space-y-4 rounded-[2rem] border border-white/10 bg-white/8 p-6">
+            <div>
+              <h2 className="text-2xl font-semibold">Suggested settlements</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                These are the fewest payments needed to settle the current balances.
+              </p>
+            </div>
+
+            {settlements.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-white/15 bg-slate-950/20 p-4 text-sm text-slate-400">
+                Everyone is settled up right now.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {settlements.map((settlement, index) => (
+                  <div
+                    key={`${settlement.from.id}-${settlement.to.id}-${index}`}
+                    className="rounded-2xl border border-white/10 bg-slate-950/30 px-4 py-4"
+                  >
+                    <p className="text-sm text-slate-300">
+                      <span className="font-medium text-slate-100">{settlement.from.name}</span>{' '}
+                      pays{' '}
+                      <span className="font-medium text-slate-100">{settlement.to.name}</span>
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-cyan-200">
+                      ${settlement.amount.toFixed(2)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
           <section className="space-y-4 rounded-[2rem] border border-white/10 bg-white/8 p-6">
             <div>
               <h2 className="text-2xl font-semibold">Add expense</h2>
@@ -269,45 +371,45 @@ export default function GroupDetail() {
           </section>
 
           <section className="space-y-4 rounded-[2rem] border border-white/10 bg-white/8 p-6">
-          <div>
-            <h2 className="text-2xl font-semibold">Members</h2>
-            <p className="mt-1 text-sm text-slate-400">
-              Add people by email to start recording shared expenses together.
-            </p>
-          </div>
+            <div>
+              <h2 className="text-2xl font-semibold">Members</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Add people by email to start recording shared expenses together.
+              </p>
+            </div>
 
-          <form className="space-y-3" onSubmit={handleAddMember}>
-            <label className="block space-y-2">
-              <span className="text-sm text-slate-200">Member email</span>
-              <input
-                required
-                type="email"
-                value={memberEmail}
-                onChange={(event) => setMemberEmail(event.target.value)}
-                placeholder="friend@example.com"
-                className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 outline-none transition focus:border-cyan-300/70 focus:ring-2 focus:ring-cyan-300/25"
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={isAddingMember}
-              className="w-full rounded-2xl bg-cyan-300 px-4 py-3 font-medium text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-cyan-100"
-            >
-              {isAddingMember ? 'Adding member...' : 'Add member'}
-            </button>
-          </form>
-
-          <div className="space-y-3">
-            {group.members.map((member) => (
-              <div
-                key={member.user.id}
-                className="rounded-2xl border border-white/10 bg-slate-950/30 px-4 py-3"
+            <form className="space-y-3" onSubmit={handleAddMember}>
+              <label className="block space-y-2">
+                <span className="text-sm text-slate-200">Member email</span>
+                <input
+                  required
+                  type="email"
+                  value={memberEmail}
+                  onChange={(event) => setMemberEmail(event.target.value)}
+                  placeholder="friend@example.com"
+                  className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 outline-none transition focus:border-cyan-300/70 focus:ring-2 focus:ring-cyan-300/25"
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={isAddingMember}
+                className="w-full rounded-2xl bg-cyan-300 px-4 py-3 font-medium text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-cyan-100"
               >
-                <p className="font-medium text-slate-100">{member.user.name}</p>
-                <p className="text-sm text-slate-400">{member.user.email}</p>
-              </div>
-            ))}
-          </div>
+                {isAddingMember ? 'Adding member...' : 'Add member'}
+              </button>
+            </form>
+
+            <div className="space-y-3">
+              {group.members.map((member) => (
+                <div
+                  key={member.user.id}
+                  className="rounded-2xl border border-white/10 bg-slate-950/30 px-4 py-3"
+                >
+                  <p className="font-medium text-slate-100">{member.user.name}</p>
+                  <p className="text-sm text-slate-400">{member.user.email}</p>
+                </div>
+              ))}
+            </div>
           </section>
         </div>
 
