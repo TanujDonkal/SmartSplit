@@ -1,15 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api';
 import type { Expense, Group } from '../api';
+import { useAuth } from '../context/useAuth';
 
 export default function GroupDetail() {
   const { groupId } = useParams();
+  const { user } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [memberEmail, setMemberEmail] = useState('');
+  const [expenseForm, setExpenseForm] = useState({
+    description: '',
+    amount: '',
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingMember, setIsAddingMember] = useState(false);
+  const [isAddingExpense, setIsAddingExpense] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -45,7 +53,20 @@ export default function GroupDetail() {
     [groupId, groups],
   );
 
-  async function handleAddMember(event: React.FormEvent<HTMLFormElement>) {
+  const splitPreview = useMemo(() => {
+    if (!group) {
+      return 0;
+    }
+
+    const amount = Number(expenseForm.amount);
+    if (!Number.isFinite(amount) || amount <= 0 || group.members.length === 0) {
+      return 0;
+    }
+
+    return amount / group.members.length;
+  }, [expenseForm.amount, group]);
+
+  async function handleAddMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!groupId || !memberEmail.trim()) {
@@ -70,6 +91,52 @@ export default function GroupDetail() {
       setError(err instanceof Error ? err.message : 'Unable to add member');
     } finally {
       setIsAddingMember(false);
+    }
+  }
+
+  async function handleAddExpense(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!groupId) {
+      setError('Group not found');
+      return;
+    }
+
+    const amount = Number(expenseForm.amount);
+    if (!expenseForm.description.trim() || !Number.isFinite(amount) || amount <= 0) {
+      setError('Enter a description and an amount greater than zero');
+      return;
+    }
+
+    setIsAddingExpense(true);
+    setError('');
+
+    try {
+      const newExpense = await api.addExpense({
+        group_id: groupId,
+        description: expenseForm.description.trim(),
+        amount,
+      });
+
+      setExpenses((current) => [newExpense, ...current]);
+      setGroups((current) =>
+        current.map((entry) =>
+          entry.id === groupId
+            ? {
+                ...entry,
+                _count: { expenses: (entry._count?.expenses ?? 0) + 1 },
+              }
+            : entry,
+        ),
+      );
+      setExpenseForm({
+        description: '',
+        amount: '',
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to add expense');
+    } finally {
+      setIsAddingExpense(false);
     }
   }
 
@@ -136,8 +203,72 @@ export default function GroupDetail() {
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-        <section className="space-y-4 rounded-[2rem] border border-white/10 bg-white/8 p-6">
+      <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+        <div className="space-y-6">
+          <section className="space-y-4 rounded-[2rem] border border-white/10 bg-white/8 p-6">
+            <div>
+              <h2 className="text-2xl font-semibold">Add expense</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Record what you paid and SmartSplit will divide it evenly across the group.
+              </p>
+            </div>
+
+            <form className="space-y-4" onSubmit={handleAddExpense}>
+              <label className="block space-y-2">
+                <span className="text-sm text-slate-200">Description</span>
+                <input
+                  required
+                  value={expenseForm.description}
+                  onChange={(event) =>
+                    setExpenseForm((current) => ({
+                      ...current,
+                      description: event.target.value,
+                    }))
+                  }
+                  placeholder="Dinner at The Bicycle Thief"
+                  className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 outline-none transition focus:border-cyan-300/70 focus:ring-2 focus:ring-cyan-300/25"
+                />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm text-slate-200">Amount paid</span>
+                <input
+                  required
+                  min="0.01"
+                  step="0.01"
+                  type="number"
+                  inputMode="decimal"
+                  value={expenseForm.amount}
+                  onChange={(event) =>
+                    setExpenseForm((current) => ({
+                      ...current,
+                      amount: event.target.value,
+                    }))
+                  }
+                  placeholder="120.00"
+                  className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 outline-none transition focus:border-cyan-300/70 focus:ring-2 focus:ring-cyan-300/25"
+                />
+              </label>
+
+              <div className="rounded-2xl border border-cyan-300/15 bg-cyan-400/8 px-4 py-3 text-sm text-cyan-100">
+                <p className="font-medium">Split preview</p>
+                <p className="mt-1 text-cyan-50/90">
+                  {user?.name ?? 'You'} paid. Each of the {group.members.length} member(s) would owe{' '}
+                  ${splitPreview.toFixed(2)}.
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isAddingExpense}
+                className="w-full rounded-2xl bg-cyan-300 px-4 py-3 font-medium text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-cyan-100"
+              >
+                {isAddingExpense ? 'Saving expense...' : 'Add expense'}
+              </button>
+            </form>
+          </section>
+
+          <section className="space-y-4 rounded-[2rem] border border-white/10 bg-white/8 p-6">
           <div>
             <h2 className="text-2xl font-semibold">Members</h2>
             <p className="mt-1 text-sm text-slate-400">
@@ -177,13 +308,14 @@ export default function GroupDetail() {
               </div>
             ))}
           </div>
-        </section>
+          </section>
+        </div>
 
         <section className="space-y-4 rounded-[2rem] border border-white/10 bg-white/8 p-6">
           <div>
-            <h2 className="text-2xl font-semibold">Recent expenses</h2>
+            <h2 className="text-2xl font-semibold">Expense activity</h2>
             <p className="mt-1 text-sm text-slate-400">
-              Expenses UI lands in the next branch. For now, this shows live group activity from the API.
+              New expenses appear here instantly, with payer details and equal-split breakdowns.
             </p>
           </div>
 
@@ -210,6 +342,26 @@ export default function GroupDetail() {
                       ${Number(expense.amount).toFixed(2)}
                     </p>
                   </div>
+                  {expense.splits?.length ? (
+                    <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/25 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                        Equal split
+                      </p>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        {expense.splits.map((split) => (
+                          <div
+                            key={split.id}
+                            className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2 text-sm"
+                          >
+                            <span className="text-slate-300">{split.user.name}</span>
+                            <span className="font-medium text-slate-100">
+                              ${Number(split.amount_owed).toFixed(2)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>

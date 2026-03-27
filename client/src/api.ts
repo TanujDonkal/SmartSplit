@@ -35,10 +35,17 @@ export interface Group {
 
 export interface Expense {
   id: string;
+  group_id?: string;
   description: string;
   amount: string;
   created_at: string;
   payer: AuthUser;
+  splits?: Array<{
+    id: string;
+    user_id: string;
+    amount_owed: string;
+    user: AuthUser;
+  }>;
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -88,4 +95,9 @@ export const api = {
       body: JSON.stringify(data),
     }),
   getGroupExpenses: (groupId: string) => request<Expense[]>(`/expenses/${groupId}`),
+  addExpense: (data: { group_id: string; amount: number; description: string }) =>
+    request<Expense>('/expenses', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
