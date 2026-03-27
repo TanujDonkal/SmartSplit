@@ -11,22 +11,29 @@ export default function Layout() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
-      <nav className="bg-slate-800 border-b border-slate-700 px-4 py-3 flex items-center justify-between">
-        <Link to="/" className="text-xl font-bold text-indigo-400">SmartSplit</Link>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.18),_transparent_28%),linear-gradient(180deg,_#0f172a,_#020617)] text-white">
+      <nav className="border-b border-white/10 bg-slate-950/45 px-4 py-4 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+          <Link to="/" className="text-xl font-semibold tracking-wide text-cyan-300">
+            SmartSplit
+          </Link>
         {user && (
           <div className="flex items-center gap-4">
-            <span className="text-sm text-slate-300">{user.name}</span>
+            <div className="text-right">
+              <p className="text-sm font-medium text-slate-100">{user.name}</p>
+              <p className="text-xs text-slate-400">{user.email}</p>
+            </div>
             <button
               onClick={handleLogout}
-              className="text-sm bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-lg transition-colors"
+              className="rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm transition hover:bg-white/14"
             >
               Logout
             </button>
           </div>
         )}
+        </div>
       </nav>
-      <main className="max-w-2xl mx-auto p-4">
+      <main className="mx-auto max-w-6xl p-4 sm:p-6">
         <Outlet />
       </main>
     </div>

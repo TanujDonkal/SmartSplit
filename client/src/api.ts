@@ -15,6 +15,32 @@ export interface RegisterResponse extends AuthUser {
   created_at: string;
 }
 
+export interface GroupMember {
+  id?: string;
+  group_id?: string;
+  user_id?: string;
+  user: AuthUser;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  created_by: string;
+  created_at: string;
+  members: GroupMember[];
+  _count?: {
+    expenses: number;
+  };
+}
+
+export interface Expense {
+  id: string;
+  description: string;
+  amount: string;
+  created_at: string;
+  payer: AuthUser;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('token');
   const headers: Record<string, string> = {
@@ -50,4 +76,16 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  getGroups: () => request<Group[]>('/groups'),
+  createGroup: (data: { name: string }) =>
+    request<Group>('/groups', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  addGroupMember: (groupId: string, data: { email: string }) =>
+    request<GroupMember>(`/groups/${groupId}/members`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getGroupExpenses: (groupId: string) => request<Expense[]>(`/expenses/${groupId}`),
 };
