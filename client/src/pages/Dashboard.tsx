@@ -165,9 +165,10 @@ export default function Dashboard() {
           <button
             type="button"
             onClick={() => setSearchParams({ tab: 'groups' })}
-            className="rounded-full border border-[#d9dbd5] px-3 py-2 text-xs font-semibold text-slate-500"
+            className="action-chip px-3.5 py-2.5 text-sm font-semibold"
           >
-            View groups
+            <span className="action-chip-icon">oo</span>
+            <span>View groups</span>
           </button>
         </div>
       </section>
