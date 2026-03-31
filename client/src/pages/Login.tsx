@@ -49,7 +49,7 @@ export default function Login() {
         <img
           src="/smartsplit-logo.png"
           alt="SmartSplit"
-          className="mb-8 h-auto w-full max-w-[14rem] object-contain"
+          className="mx-auto mb-10 h-auto w-full max-w-[14rem] object-contain"
         />
         <h1 className="mb-8 text-4xl font-semibold text-slate-900">Log in</h1>
 

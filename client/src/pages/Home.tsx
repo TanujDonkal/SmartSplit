@@ -9,7 +9,7 @@ export default function Home() {
         <img
           src="/smartsplit-logo.png"
           alt="SmartSplit"
-          className="mb-5 h-auto w-full max-w-[19rem] object-contain"
+          className="mx-auto mb-5 h-auto w-full max-w-[19rem] object-contain"
         />
         <p className="mt-3 max-w-xs text-base leading-7 text-slate-500">
           Track shared bills, split group expenses, and settle up with a flow that feels clear on mobile first.
