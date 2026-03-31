@@ -148,6 +148,33 @@ select {
   font-weight: 700;
 }
 
+.action-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(53, 93, 116, 0.14);
+  background: linear-gradient(180deg, #ffffff 0%, #f3f8f7 100%);
+  color: var(--ink);
+  box-shadow: 0 8px 20px rgba(53, 93, 116, 0.08);
+}
+
+.action-chip:hover {
+  transform: translateY(-1px);
+}
+
+.action-chip-icon {
+  display: grid;
+  height: 1.8rem;
+  width: 1.8rem;
+  place-items: center;
+  border-radius: 0.75rem;
+  background: rgba(54, 181, 172, 0.14);
+  color: var(--brand-dark);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
 .mini-label {
   font-size: 0.79rem;
   color: var(--text-soft);
