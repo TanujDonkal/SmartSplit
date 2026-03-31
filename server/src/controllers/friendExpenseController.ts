@@ -19,6 +19,65 @@ async function getFriendshipOrNull(userId: string, friendId: string) {
   });
 }
 
+export const getFriendSummary = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  const userId = req.userId!;
+  const friendId = req.params.friendId as string;
+
+  try {
+    const friendship = await getFriendshipOrNull(userId, friendId);
+
+    if (!friendship) {
+      res.status(404).json({ error: "Friendship not found" });
+      return;
+    }
+
+    const expenses = await prisma.friendExpense.findMany({
+      where: { friendship_id: friendship.id },
+      include: {
+        payer: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { created_at: "desc" },
+    });
+
+    const friend =
+      friendship.userA.id === userId ? friendship.userB : friendship.userA;
+
+    let netBalance = 0;
+    let youPaidTotal = 0;
+    let friendPaidTotal = 0;
+
+    expenses.forEach((expense) => {
+      const amount = Number(expense.amount);
+      const paidByMe = expense.payer.id === userId;
+      const impact =
+        expense.split_type === "FULL_AMOUNT" ? amount : amount / 2;
+
+      if (paidByMe) {
+        youPaidTotal += amount;
+        netBalance += impact;
+      } else {
+        friendPaidTotal += amount;
+        netBalance -= impact;
+      }
+    });
+
+    res.json({
+      friend,
+      net_balance: Math.round(netBalance * 100) / 100,
+      expense_count: expenses.length,
+      you_paid_total: Math.round(youPaidTotal * 100) / 100,
+      friend_paid_total: Math.round(friendPaidTotal * 100) / 100,
+      last_activity: expenses[0]?.created_at ?? null,
+    });
+  } catch (error) {
+    console.error("Get friend summary error:", error);
+    res.status(500).json({ error: "Failed to fetch friend summary" });
+  }
+};
+
 export const getFriendExpenses = async (
   req: AuthRequest,
   res: Response

@@ -16,6 +16,8 @@ export default function Layout() {
   const currentTab =
     location.pathname.startsWith('/groups/')
       ? 'groups'
+      : location.pathname.startsWith('/friends/')
+        ? 'friends'
       : new URLSearchParams(location.search).get('tab') ?? 'groups';
 
   const handleLogout = () => {
