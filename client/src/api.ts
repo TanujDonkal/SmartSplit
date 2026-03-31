@@ -65,6 +65,14 @@ export interface Friend {
   email: string;
 }
 
+export interface FriendExpense {
+  id: string;
+  description: string;
+  amount: string;
+  split_type: 'EQUAL' | 'FULL_AMOUNT';
+  created_at: string;
+  payer: AuthUser;
+}
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('token');
   const headers: Record<string, string> = {
@@ -103,6 +111,21 @@ export const api = {
   getFriends: () => request<Friend[]>('/friends'),
   addFriend: (data: { email: string }) =>
     request<Friend>('/friends', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getFriendExpenses: (friendId: string) =>
+    request<FriendExpense[]>(`/friends/${friendId}/expenses`),
+  addFriendExpense: (
+    friendId: string,
+    data: {
+      description: string;
+      amount: number;
+      paid_by: 'self' | 'friend';
+      split_type: 'equal' | 'full_amount';
+    },
+  ) =>
+    request<FriendExpense>(`/friends/${friendId}/expenses`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),

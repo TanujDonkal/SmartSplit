@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
-import type { Expense, Friend, Group } from '../api';
+import type { Expense, Friend, FriendExpense, Group } from '../api';
 import { useAuth } from '../context/useAuth';
 
 type DashboardExpense = Expense & { groupName: string };
+type FriendExpenseOption = 'you_paid_equal' | 'friend_paid_equal' | 'you_paid_full' | 'friend_paid_full';
 
 export default function Dashboard() {
   const { token, user } = useAuth();
@@ -15,13 +16,21 @@ export default function Dashboard() {
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [friendEmail, setFriendEmail] = useState('');
   const [groupName, setGroupName] = useState('');
+  const [friendEmail, setFriendEmail] = useState('');
   const [recentExpenses, setRecentExpenses] = useState<DashboardExpense[]>([]);
+  const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
+  const [friendExpenses, setFriendExpenses] = useState<Record<string, FriendExpense[]>>({});
+  const [friendExpenseForm, setFriendExpenseForm] = useState({
+    description: '',
+    amount: '',
+    option: 'you_paid_equal' as FriendExpenseOption,
+  });
   const [netBalance, setNetBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isAddingFriend, setIsAddingFriend] = useState(false);
+  const [isSavingFriendExpense, setIsSavingFriendExpense] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -42,8 +51,10 @@ export default function Dashboard() {
     setError('');
 
     try {
-      const groupList = await api.getGroups();
-      const friendList = await api.getFriends();
+      const [groupList, friendList] = await Promise.all([
+        api.getGroups(),
+        api.getFriends(),
+      ]);
       setGroups(groupList);
       setFriends(friendList);
 
@@ -76,6 +87,14 @@ export default function Dashboard() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  async function loadFriendExpenses(friendId: string) {
+    const expenses = await api.getFriendExpenses(friendId);
+    setFriendExpenses((current) => ({
+      ...current,
+      [friendId]: expenses,
+    }));
   }
 
   async function handleCreateGroup(event: FormEvent<HTMLFormElement>) {
@@ -138,6 +157,79 @@ export default function Dashboard() {
     }
   }
 
+  async function handleSelectFriend(friendId: string) {
+    if (selectedFriendId === friendId) {
+      setSelectedFriendId(null);
+      return;
+    }
+
+    setSelectedFriendId(friendId);
+    setFriendExpenseForm({
+      description: '',
+      amount: '',
+      option: 'you_paid_equal',
+    });
+
+    if (!friendExpenses[friendId]) {
+      try {
+        await loadFriendExpenses(friendId);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unable to load direct friend expenses');
+      }
+    }
+  }
+
+  async function handleAddFriendExpense(friend: Friend, event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!token) {
+      promptLogin('Please log in to add an expense.');
+      return;
+    }
+
+    const amount = Number(friendExpenseForm.amount);
+    if (!friendExpenseForm.description.trim() || !Number.isFinite(amount) || amount <= 0) {
+      setError('Enter a description and an amount greater than zero');
+      return;
+    }
+
+    const payloadByOption: Record<
+      FriendExpenseOption,
+      { paid_by: 'self' | 'friend'; split_type: 'equal' | 'full_amount' }
+    > = {
+      you_paid_equal: { paid_by: 'self', split_type: 'equal' },
+      friend_paid_equal: { paid_by: 'friend', split_type: 'equal' },
+      you_paid_full: { paid_by: 'self', split_type: 'full_amount' },
+      friend_paid_full: { paid_by: 'friend', split_type: 'full_amount' },
+    };
+
+    setIsSavingFriendExpense(true);
+    setError('');
+
+    try {
+      const created = await api.addFriendExpense(friend.id, {
+        description: friendExpenseForm.description.trim(),
+        amount,
+        ...payloadByOption[friendExpenseForm.option],
+      });
+
+      setFriendExpenses((current) => ({
+        ...current,
+        [friend.id]: [created, ...(current[friend.id] ?? [])],
+      }));
+
+      setFriendExpenseForm({
+        description: '',
+        amount: '',
+        option: 'you_paid_equal',
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to add friend expense');
+    } finally {
+      setIsSavingFriendExpense(false);
+    }
+  }
+
   const balanceTone =
     netBalance > 0.005 ? 'text-[#36b5ac]' : netBalance < -0.005 ? 'text-[#ff9630]' : 'text-slate-700';
 
@@ -150,6 +242,22 @@ export default function Dashboard() {
 
   function promptLogin(message: string) {
     navigate('/login', { state: { message } });
+  }
+
+  function getFriendExpenseSummary(expense: FriendExpense, friend: Friend) {
+    const amount = Number(expense.amount);
+    const share = amount / 2;
+    const paidByMe = expense.payer.id === user?.id;
+
+    if (expense.split_type === 'FULL_AMOUNT') {
+      return paidByMe
+        ? `${friend.name} owes you $${amount.toFixed(2)}`
+        : `You owe ${friend.name} $${amount.toFixed(2)}`;
+    }
+
+    return paidByMe
+      ? `${friend.name} owes you $${share.toFixed(2)}`
+      : `You owe ${friend.name} $${share.toFixed(2)}`;
   }
 
   return (
@@ -185,7 +293,7 @@ export default function Dashboard() {
         <section className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-[1.75rem] font-semibold text-slate-900">Friends</h2>
-            <span className="text-sm font-semibold text-[#36b5ac]">By email</span>
+            <span className="text-sm font-semibold text-[#36b5ac]">Daily splits</span>
           </div>
 
           {!token ? (
@@ -217,28 +325,137 @@ export default function Dashboard() {
 
               {friends.length === 0 ? (
                 <div className="surface-card p-5 text-sm text-slate-600">
-                  No friends added yet. Add a signed-up friend by email to start building your daily split network.
+                  No friends added yet. Add a signed-up friend by email to start daily direct splits.
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {friends.map((friend) => (
-                    <div key={friend.id} className="surface-card flex items-center gap-4 p-4">
-                      <div className="grid h-12 w-12 place-items-center rounded-full bg-[#ffdfd4] text-sm font-semibold text-[#d96543]">
-                        {friend.name
-                          .split(' ')
-                          .map((part) => part[0])
-                          .join('')
-                          .slice(0, 2)}
+                  {friends.map((friend) => {
+                    const isOpen = selectedFriendId === friend.id;
+                    const expenses = friendExpenses[friend.id] ?? [];
+
+                    return (
+                      <div key={friend.id} className="surface-card p-4">
+                        <div className="flex items-center gap-4">
+                          <div className="grid h-12 w-12 place-items-center rounded-full bg-[#ffdfd4] text-sm font-semibold text-[#d96543]">
+                            {friend.name
+                              .split(' ')
+                              .map((part) => part[0])
+                              .join('')
+                              .slice(0, 2)}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-slate-900">{friend.name}</p>
+                            <p className="truncate text-sm text-slate-500">{friend.email}</p>
+                            <p className="mt-1 text-sm text-[#36b5ac]">Mutual friend connection active</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void handleSelectFriend(friend.id)}
+                            className="rounded-xl border border-[#cfe7e3] px-3 py-2 text-sm font-semibold text-[#2b938c]"
+                          >
+                            {isOpen ? 'Close' : 'Add expense'}
+                          </button>
+                        </div>
+
+                        {isOpen ? (
+                          <div className="mt-4 space-y-4 border-t border-[#ecece7] pt-4">
+                            <form className="space-y-3" onSubmit={(event) => void handleAddFriendExpense(friend, event)}>
+                              <label className="block space-y-2">
+                                <span className="text-sm font-medium text-slate-700">Description</span>
+                                <input
+                                  required
+                                  value={friendExpenseForm.description}
+                                  onChange={(event) =>
+                                    setFriendExpenseForm((current) => ({
+                                      ...current,
+                                      description: event.target.value,
+                                    }))
+                                  }
+                                  placeholder="Food"
+                                  className="form-input"
+                                />
+                              </label>
+
+                              <label className="block space-y-2">
+                                <span className="text-sm font-medium text-slate-700">Amount</span>
+                                <input
+                                  required
+                                  type="number"
+                                  min="0.01"
+                                  step="0.01"
+                                  inputMode="decimal"
+                                  value={friendExpenseForm.amount}
+                                  onChange={(event) =>
+                                    setFriendExpenseForm((current) => ({
+                                      ...current,
+                                      amount: event.target.value,
+                                    }))
+                                  }
+                                  placeholder="20"
+                                  className="form-input"
+                                />
+                              </label>
+
+                              <label className="block space-y-2">
+                                <span className="text-sm font-medium text-slate-700">How should this work?</span>
+                                <select
+                                  value={friendExpenseForm.option}
+                                  onChange={(event) =>
+                                    setFriendExpenseForm((current) => ({
+                                      ...current,
+                                      option: event.target.value as FriendExpenseOption,
+                                    }))
+                                  }
+                                  className="form-input"
+                                >
+                                  <option value="you_paid_equal">You paid, split equally</option>
+                                  <option value="friend_paid_equal">{friend.name} paid, split equally</option>
+                                  <option value="you_paid_full">You paid, {friend.name} owes the full amount</option>
+                                  <option value="friend_paid_full">{friend.name} paid, you owe the full amount</option>
+                                </select>
+                              </label>
+
+                              <button
+                                type="submit"
+                                disabled={isSavingFriendExpense}
+                                className="primary-button w-full px-4 py-3"
+                              >
+                                {isSavingFriendExpense ? 'Saving expense...' : 'Save direct expense'}
+                              </button>
+                            </form>
+
+                            <div className="space-y-3">
+                              <p className="text-sm font-semibold text-slate-700">Recent direct expenses</p>
+                              {expenses.length === 0 ? (
+                                <div className="rounded-2xl bg-[#f7f8f4] px-4 py-3 text-sm text-slate-500">
+                                  No direct expenses yet with {friend.name}.
+                                </div>
+                              ) : (
+                                expenses.slice(0, 4).map((expense) => (
+                                  <div key={expense.id} className="rounded-2xl bg-[#f7f8f4] px-4 py-3">
+                                    <div className="flex items-start justify-between gap-4">
+                                      <div>
+                                        <p className="font-semibold text-slate-900">{expense.description}</p>
+                                        <p className="mt-1 text-sm text-slate-500">
+                                          {expense.payer.name} paid ${Number(expense.amount).toFixed(2)}
+                                        </p>
+                                      </div>
+                                      <p className="text-sm font-semibold text-[#36b5ac]">
+                                        {new Date(expense.created_at).toLocaleDateString()}
+                                      </p>
+                                    </div>
+                                    <p className="mt-2 text-sm text-[#2b938c]">
+                                      {getFriendExpenseSummary(expense, friend)}
+                                    </p>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-slate-900">{friend.name}</p>
-                        <p className="truncate text-sm text-slate-500">{friend.email}</p>
-                        <p className="mt-1 text-sm text-[#36b5ac]">
-                          Mutual friend connection active
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </>
