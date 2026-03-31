@@ -366,36 +366,43 @@ export default function GroupDetail() {
             </form>
           </section>
 
-          <section className="glass-card space-y-4 rounded-[2rem] p-6">
+          <section className="space-y-4 rounded-[2rem] border border-white/10 bg-white/8 p-6">
             <div>
-              <h2 className="text-2xl font-semibold text-slate-900">Members</h2>
-              <p className="mt-1 text-sm text-slate-600">
+              <h2 className="text-2xl font-semibold">Members</h2>
+              <p className="mt-1 text-sm text-slate-400">
                 Add people by email to start recording shared expenses together.
               </p>
             </div>
 
             <form className="space-y-3" onSubmit={handleAddMember}>
               <label className="block space-y-2">
-                <span className="text-sm text-slate-700">Member email</span>
+                <span className="text-sm text-slate-200">Member email</span>
                 <input
                   required
                   type="email"
                   value={memberEmail}
                   onChange={(event) => setMemberEmail(event.target.value)}
                   placeholder="friend@example.com"
-                  className="form-input"
+                  className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 outline-none transition focus:border-cyan-300/70 focus:ring-2 focus:ring-cyan-300/25"
                 />
               </label>
-              <button type="submit" disabled={isAddingMember} className="primary-button w-full px-4 py-3">
+              <button
+                type="submit"
+                disabled={isAddingMember}
+                className="w-full rounded-2xl bg-cyan-300 px-4 py-3 font-medium text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-cyan-100"
+              >
                 {isAddingMember ? 'Adding member...' : 'Add member'}
               </button>
             </form>
 
             <div className="space-y-3">
               {group.members.map((member) => (
-                <div key={member.user.id} className="soft-panel rounded-2xl px-4 py-3">
-                  <p className="font-medium text-slate-900">{member.user.name}</p>
-                  <p className="text-sm text-slate-500">{member.user.email}</p>
+                <div
+                  key={member.user.id}
+                  className="rounded-2xl border border-white/10 bg-slate-950/30 px-4 py-3"
+                >
+                  <p className="font-medium text-slate-100">{member.user.name}</p>
+                  <p className="text-sm text-slate-400">{member.user.email}</p>
                 </div>
               ))}
             </div>
