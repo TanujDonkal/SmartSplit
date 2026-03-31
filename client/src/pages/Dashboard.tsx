@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
-import type { Expense, Group } from '../api';
+import type { Expense, Friend, Group } from '../api';
 import { useAuth } from '../context/useAuth';
 
 type DashboardExpense = Expense & { groupName: string };
@@ -14,16 +14,20 @@ export default function Dashboard() {
   const activeTab = searchParams.get('tab') ?? 'groups';
 
   const [groups, setGroups] = useState<Group[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [friendEmail, setFriendEmail] = useState('');
   const [groupName, setGroupName] = useState('');
   const [recentExpenses, setRecentExpenses] = useState<DashboardExpense[]>([]);
   const [netBalance, setNetBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [isAddingFriend, setIsAddingFriend] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!token) {
       setGroups([]);
+      setFriends([]);
       setRecentExpenses([]);
       setNetBalance(0);
       setIsLoading(false);
@@ -39,7 +43,9 @@ export default function Dashboard() {
 
     try {
       const groupList = await api.getGroups();
+      const friendList = await api.getFriends();
       setGroups(groupList);
+      setFriends(friendList);
 
       const [balanceLists, expenseLists] = await Promise.all([
         Promise.all(groupList.map((group) => api.getGroupBalances(group.id))),
@@ -102,33 +108,35 @@ export default function Dashboard() {
     }
   }
 
-  const friends = useMemo(() => {
-    const seen = new Map<string, { name: string; email: string; groups: Set<string> }>();
+  async function handleAddFriend(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
-    for (const group of groups) {
-      for (const member of group.members) {
-        if (member.user.id === user?.id) {
-          continue;
-        }
-
-        const existing = seen.get(member.user.id);
-        if (existing) {
-          existing.groups.add(group.name);
-        } else {
-          seen.set(member.user.id, {
-            name: member.user.name,
-            email: member.user.email,
-            groups: new Set([group.name]),
-          });
-        }
-      }
+    if (!token) {
+      promptLogin('Please log in to add a friend.');
+      return;
     }
 
-    return Array.from(seen.entries()).map(([id, value]) => ({
-      id,
-      ...value,
-    }));
-  }, [groups, user?.id]);
+    if (!friendEmail.trim()) {
+      setError('Friend email is required');
+      return;
+    }
+
+    setIsAddingFriend(true);
+    setError('');
+
+    try {
+      const friend = await api.addFriend({ email: friendEmail.trim() });
+      setFriends((current) => {
+        const exists = current.some((entry) => entry.id === friend.id);
+        return exists ? current : [friend, ...current];
+      });
+      setFriendEmail('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to add friend');
+    } finally {
+      setIsAddingFriend(false);
+    }
+  }
 
   const balanceTone =
     netBalance > 0.005 ? 'text-[#36b5ac]' : netBalance < -0.005 ? 'text-[#ff9630]' : 'text-slate-700';
@@ -177,48 +185,63 @@ export default function Dashboard() {
         <section className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-[1.75rem] font-semibold text-slate-900">Friends</h2>
-            <button
-              type="button"
-              onClick={() =>
-                token
-                  ? setSearchParams({ tab: 'groups' })
-                  : promptLogin('Please log in to add friends to a group.')
-              }
-              className="text-sm font-semibold text-[#36b5ac]"
-            >
-              Add friends
-            </button>
+            <span className="text-sm font-semibold text-[#36b5ac]">By email</span>
           </div>
 
           {!token ? (
             <div className="surface-card p-5 text-sm text-slate-600">
-              Log in first, then add a friend by email from inside a group.
-            </div>
-          ) : friends.length === 0 ? (
-            <div className="surface-card p-5 text-sm text-slate-600">
-              No friends added yet. Create a group and invite people by email.
+              Log in first, then add a signed-up friend by email.
             </div>
           ) : (
-            <div className="space-y-3">
-              {friends.map((friend) => (
-                <div key={friend.id} className="surface-card flex items-center gap-4 p-4">
-                  <div className="grid h-12 w-12 place-items-center rounded-full bg-[#ffdfd4] text-sm font-semibold text-[#d96543]">
-                    {friend.name
-                      .split(' ')
-                      .map((part) => part[0])
-                      .join('')
-                      .slice(0, 2)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-slate-900">{friend.name}</p>
-                    <p className="truncate text-sm text-slate-500">{friend.email}</p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      In {friend.groups.size} group{friend.groups.size === 1 ? '' : 's'}
-                    </p>
-                  </div>
+            <>
+              <form className="surface-card space-y-3 p-4" onSubmit={handleAddFriend}>
+                <label className="block space-y-2">
+                  <span className="text-sm font-medium text-slate-700">Friend email</span>
+                  <input
+                    required
+                    autoComplete="email"
+                    type="email"
+                    value={friendEmail}
+                    onChange={(event) => setFriendEmail(event.target.value)}
+                    placeholder="friend@example.com"
+                    className="form-input"
+                  />
+                </label>
+                <button type="submit" disabled={isAddingFriend} className="primary-button w-full px-4 py-3">
+                  {isAddingFriend ? 'Adding friend...' : 'Add friend'}
+                </button>
+                <p className="text-sm text-slate-500">
+                  Use the exact email your friend used when signing up. Once added, both of you will see each other in Friends.
+                </p>
+              </form>
+
+              {friends.length === 0 ? (
+                <div className="surface-card p-5 text-sm text-slate-600">
+                  No friends added yet. Add a signed-up friend by email to start building your daily split network.
                 </div>
-              ))}
-            </div>
+              ) : (
+                <div className="space-y-3">
+                  {friends.map((friend) => (
+                    <div key={friend.id} className="surface-card flex items-center gap-4 p-4">
+                      <div className="grid h-12 w-12 place-items-center rounded-full bg-[#ffdfd4] text-sm font-semibold text-[#d96543]">
+                        {friend.name
+                          .split(' ')
+                          .map((part) => part[0])
+                          .join('')
+                          .slice(0, 2)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-slate-900">{friend.name}</p>
+                        <p className="truncate text-sm text-slate-500">{friend.email}</p>
+                        <p className="mt-1 text-sm text-[#36b5ac]">
+                          Mutual friend connection active
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </section>
       )}

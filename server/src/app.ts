@@ -4,6 +4,7 @@ import healthRouter from "./routes/health";
 import authRouter from "./routes/auth";
 import groupsRouter from "./routes/groups";
 import expensesRouter from "./routes/expenses";
+import friendsRouter from "./routes/friends";
 
 const app = express();
 
@@ -14,6 +15,7 @@ app.use(express.json());
 // Routes
 app.use("/api/health", healthRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/friends", friendsRouter);
 app.use("/api/groups", groupsRouter);
 app.use("/api/expenses", expensesRouter);
 

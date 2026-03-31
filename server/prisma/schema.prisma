@@ -17,8 +17,23 @@ model User {
   memberships    GroupMember[]
   paid_expenses  Expense[]      @relation("ExpensePayer")
   splits         ExpenseSplit[]
+  friendshipsA   Friendship[]   @relation("FriendshipUserA")
+  friendshipsB   Friendship[]   @relation("FriendshipUserB")
 
   @@map("users")
+}
+
+model Friendship {
+  id         String   @id @default(uuid())
+  user_a_id  String
+  user_b_id  String
+  created_at DateTime @default(now())
+
+  userA      User     @relation("FriendshipUserA", fields: [user_a_id], references: [id])
+  userB      User     @relation("FriendshipUserB", fields: [user_b_id], references: [id])
+
+  @@unique([user_a_id, user_b_id])
+  @@map("friendships")
 }
 
 model Group {
