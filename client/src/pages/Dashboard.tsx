@@ -131,7 +131,7 @@ export default function Dashboard() {
   }, [groups, user?.id]);
 
   const balanceTone =
-    netBalance > 0.005 ? 'text-[#159b75]' : netBalance < -0.005 ? 'text-[#e86e49]' : 'text-slate-700';
+    netBalance > 0.005 ? 'text-[#36b5ac]' : netBalance < -0.005 ? 'text-[#ff9630]' : 'text-slate-700';
 
   const balanceMessage =
     netBalance > 0.005
@@ -183,7 +183,7 @@ export default function Dashboard() {
                   ? setSearchParams({ tab: 'groups' })
                   : promptLogin('Please log in to add friends to a group.')
               }
-              className="text-sm font-semibold text-[#159b75]"
+              className="text-sm font-semibold text-[#36b5ac]"
             >
               Add friends
             </button>
@@ -232,7 +232,7 @@ export default function Dashboard() {
                 const form = document.getElementById('create-group-form');
                 form?.scrollIntoView({ behavior: 'smooth', block: 'center' });
               }}
-              className="text-sm font-semibold text-[#159b75]"
+              className="text-sm font-semibold text-[#36b5ac]"
             >
               Create group
             </button>
@@ -272,7 +272,7 @@ export default function Dashboard() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold text-[#159b75]">
+                      <p className="text-sm font-semibold text-[#36b5ac]">
                         {group._count?.expenses ?? 0} expense{(group._count?.expenses ?? 0) === 1 ? '' : 's'}
                       </p>
                       <p className="mt-1 text-xs text-slate-400">
@@ -307,14 +307,14 @@ export default function Dashboard() {
                 const isMe = expense.payer.id === user?.id;
                 return (
                   <div key={`${expense.group_id}-${expense.id}`} className="surface-card flex gap-4 p-4">
-                    <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#eef3ef] text-sm font-semibold text-[#159b75]">
+                    <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#eef8f7] text-sm font-semibold text-[#36b5ac]">
                       $
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-slate-900">
                         {isMe ? 'You added' : `${expense.payer.name} added`} "{expense.description}"
                       </p>
-                      <p className="mt-1 text-sm text-[#159b75]">
+                      <p className="mt-1 text-sm text-[#36b5ac]">
                         ${Number(expense.amount).toFixed(2)} in {expense.groupName}
                       </p>
                       <p className="mt-1 text-xs text-slate-400">
@@ -352,13 +352,13 @@ export default function Dashboard() {
           </div>
 
           <div className="surface-card overflow-hidden">
-            <div className="bg-[linear-gradient(135deg,#efe5ff,#f8ecff)] px-5 py-6">
+            <div className="bg-[linear-gradient(135deg,#eef8f7,#fff4dc)] px-5 py-6">
               <p className="text-lg font-semibold text-slate-900">Do more with SmartSplit</p>
               <p className="mt-2 text-sm text-slate-600">
                 Keep your household, trip, and friend expenses easy to understand at a glance.
               </p>
-              <button className="mt-4 rounded-full bg-[#7a51d9] px-5 py-3 text-sm font-semibold text-white">
-                Explore premium-style layout
+              <button className="mt-4 rounded-full bg-[#355d74] px-5 py-3 text-sm font-semibold text-white">
+                Explore SmartSplit style
               </button>
             </div>
 
@@ -381,7 +381,7 @@ export default function Dashboard() {
             ? setSearchParams({ tab: 'groups' })
             : promptLogin('Please log in to add an expense.')
         }
-        className="floating-action fixed bottom-24 left-1/2 z-20 flex w-[calc(100%-2rem)] max-w-[20rem] -translate-x-1/2 items-center justify-center gap-2 rounded-full bg-[#1aa980] px-5 py-4 text-base font-semibold text-white"
+        className="floating-action fixed bottom-24 left-1/2 z-20 flex w-[calc(100%-2rem)] max-w-[20rem] -translate-x-1/2 items-center justify-center gap-2 rounded-full bg-[#36b5ac] px-5 py-4 text-base font-semibold text-white"
       >
         <span className="text-lg leading-none">[]</span>
         <span>Add expense</span>

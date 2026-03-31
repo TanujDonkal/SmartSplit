@@ -170,7 +170,7 @@ export default function GroupDetail() {
         <div className="rounded-2xl border border-[#f1c5b8] bg-[#fff1ec] px-4 py-3 text-sm text-[#bf5b37]">
           {error}
         </div>
-        <Link className="text-sm font-semibold text-[#159b75]" to="/dashboard?tab=groups">
+        <Link className="text-sm font-semibold text-[#36b5ac]" to="/dashboard?tab=groups">
           Back to groups
         </Link>
       </div>
@@ -183,7 +183,7 @@ export default function GroupDetail() {
         <div className="rounded-2xl border border-[#ead7a8] bg-[#fff8e7] px-4 py-3 text-sm text-[#8c6a25]">
           We couldn&apos;t find that group.
         </div>
-        <Link className="text-sm font-semibold text-[#159b75]" to="/dashboard?tab=groups">
+        <Link className="text-sm font-semibold text-[#36b5ac]" to="/dashboard?tab=groups">
           Back to groups
         </Link>
       </div>
@@ -193,7 +193,7 @@ export default function GroupDetail() {
   return (
     <div className="space-y-4 pb-6">
       <section className="rounded-[1.8rem] bg-white px-5 py-5 shadow-[0_12px_30px_rgba(31,41,55,0.05)]">
-        <Link className="text-sm font-semibold text-[#159b75]" to="/dashboard?tab=groups">
+        <Link className="text-sm font-semibold text-[#36b5ac]" to="/dashboard?tab=groups">
           ‹ Back to groups
         </Link>
 
@@ -211,9 +211,9 @@ export default function GroupDetail() {
             <p
               className={`mt-2 text-2xl font-semibold ${
                 myBalance > 0
-                  ? 'text-[#159b75]'
+                  ? 'text-[#36b5ac]'
                   : myBalance < 0
-                    ? 'text-[#e86e49]'
+                    ? 'text-[#ff9630]'
                     : 'text-slate-700'
               }`}
             >
@@ -277,7 +277,7 @@ export default function GroupDetail() {
             className="form-input"
           />
 
-          <div className="rounded-2xl bg-[#eef8f4] px-4 py-3 text-sm text-[#116e54]">
+            <div className="rounded-2xl bg-[#eef8f7] px-4 py-3 text-sm text-[#2b938c]">
             Split preview: {group.members.length} member(s) would each owe ${splitPreview.toFixed(2)}.
           </div>
 
@@ -311,7 +311,7 @@ export default function GroupDetail() {
         <div className="mt-4 space-y-3">
           {group.members.map((member) => (
             <div key={member.user.id} className="soft-card flex items-center gap-3 p-3">
-              <div className="grid h-11 w-11 place-items-center rounded-full bg-[#edf0ef] text-sm font-semibold text-[#159b75]">
+              <div className="grid h-11 w-11 place-items-center rounded-full bg-[#eef8f7] text-sm font-semibold text-[#36b5ac]">
                 {member.user.name
                   .split(' ')
                   .map((part) => part[0])
@@ -349,9 +349,9 @@ export default function GroupDetail() {
                   <p
                     className={`text-lg font-semibold ${
                       entry.balance > 0
-                        ? 'text-[#159b75]'
+                        ? 'text-[#36b5ac]'
                         : entry.balance < 0
-                          ? 'text-[#e86e49]'
+                          ? 'text-[#ff9630]'
                           : 'text-slate-700'
                     }`}
                   >
@@ -388,7 +388,7 @@ export default function GroupDetail() {
                   <span className="font-semibold text-slate-900">{settlement.from.name}</span> pays{' '}
                   <span className="font-semibold text-slate-900">{settlement.to.name}</span>
                 </p>
-                <p className="mt-2 text-2xl font-semibold text-[#159b75]">
+                <p className="mt-2 text-2xl font-semibold text-[#36b5ac]">
                   ${settlement.amount.toFixed(2)}
                 </p>
               </div>
@@ -416,7 +416,7 @@ export default function GroupDetail() {
                       Paid by {expense.payer.name} on {new Date(expense.created_at).toLocaleDateString()}
                     </p>
                   </div>
-                  <p className="text-lg font-semibold text-[#159b75]">
+                  <p className="text-lg font-semibold text-[#36b5ac]">
                     ${Number(expense.amount).toFixed(2)}
                   </p>
                 </div>

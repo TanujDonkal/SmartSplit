@@ -12,12 +12,14 @@
   --card-bg: #ffffff;
   --muted-bg: #f4f4f0;
   --line: #d6d7d2;
-  --text-main: #1f2937;
+  --text-main: #355d74;
   --text-soft: #6b7280;
-  --brand: #159b75;
-  --brand-dark: #0e7f60;
-  --ink: #343840;
-  --danger: #e86e49;
+  --brand: #36b5ac;
+  --brand-dark: #2b938c;
+  --brand-soft: #c7d579;
+  --accent: #f6b93f;
+  --ink: #355d74;
+  --danger: #ff9630;
 }
 
 * {
@@ -28,7 +30,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: linear-gradient(180deg, #fbfbf8 0%, #f4f5f0 100%);
+  background: linear-gradient(180deg, #fffdfa 0%, #f6f6f0 100%);
   color: var(--text-main);
 }
 
@@ -49,19 +51,19 @@ select {
 }
 
 ::selection {
-  background: rgba(21, 155, 117, 0.18);
+  background: rgba(54, 181, 172, 0.18);
 }
 
 .app-shell {
   min-height: 100vh;
-  background: #fbfbf8;
+  background: #fffdfa;
 }
 
 .mobile-shell {
   width: min(100%, 30rem);
   min-height: 100vh;
   margin: 0 auto;
-  background: #fbfbf8;
+  background: #fffdfa;
 }
 
 .surface-card {
@@ -80,7 +82,7 @@ select {
 .form-input {
   width: 100%;
   border-radius: 0.95rem;
-  border: 2px solid #3d4148;
+  border: 2px solid #355d74;
   background: #ffffff;
   padding: 0.95rem 1rem;
   color: var(--text-main);
@@ -97,7 +99,7 @@ select {
 
 .form-input:focus {
   border-color: var(--brand);
-  box-shadow: 0 0 0 4px rgba(21, 155, 117, 0.14);
+  box-shadow: 0 0 0 4px rgba(54, 181, 172, 0.16);
 }
 
 .primary-button {
@@ -139,7 +141,7 @@ select {
 }
 
 .outline-button {
-  border: 1.5px solid rgba(21, 155, 117, 0.38);
+  border: 1.5px solid rgba(54, 181, 172, 0.45);
   border-radius: 0.95rem;
   background: #fff;
   color: var(--brand-dark);
@@ -156,5 +158,5 @@ select {
 }
 
 .floating-action {
-  box-shadow: 0 14px 28px rgba(21, 155, 117, 0.28);
+  box-shadow: 0 14px 28px rgba(54, 181, 172, 0.28);
 }

@@ -48,11 +48,16 @@ export default function Register() {
     <div className="mx-auto flex min-h-screen w-full max-w-[30rem] flex-col px-4 py-6">
       <div className="mb-8 flex items-center">
         <Link to="/" className="text-3xl leading-none text-slate-700">
-          ‹
+          &lsaquo;
         </Link>
       </div>
 
       <div className="mx-auto w-full max-w-md">
+        <img
+          src="/smartsplit-logo.png"
+          alt="SmartSplit"
+          className="mb-8 h-auto w-full max-w-[14rem] object-contain"
+        />
         <h1 className="mb-8 text-4xl font-semibold text-slate-900">Sign up</h1>
 
         {token ? (
@@ -133,7 +138,11 @@ export default function Register() {
             />
           </label>
 
-          <button type="submit" disabled={isSubmitting} className="primary-button w-full px-4 py-4 text-lg">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="primary-button w-full px-4 py-4 text-lg"
+          >
             {isSubmitting ? 'Creating account...' : 'Next'}
           </button>
         </form>
