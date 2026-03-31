@@ -72,6 +72,11 @@ export default function GroupDetail() {
     return amount / group.members.length;
   }, [expenseForm.amount, group]);
 
+  const myBalance = useMemo(() => {
+    const mine = balances.find((entry) => entry.user.id === user?.id);
+    return mine?.balance ?? 0;
+  }, [balances, user?.id]);
+
   async function refreshGroupSummaries(activeGroupId: string) {
     const [groupBalances, groupSettlements] = await Promise.all([
       api.getGroupBalances(activeGroupId),
@@ -96,9 +101,7 @@ export default function GroupDetail() {
       const newMember = await api.addGroupMember(groupId, { email: memberEmail.trim() });
       setGroups((current) =>
         current.map((entry) =>
-          entry.id === groupId
-            ? { ...entry, members: [...entry.members, newMember] }
-            : entry,
+          entry.id === groupId ? { ...entry, members: [...entry.members, newMember] } : entry,
         ),
       );
       setMemberEmail('');
@@ -158,21 +161,17 @@ export default function GroupDetail() {
   }
 
   if (isLoading) {
-    return (
-      <div className="glass-card rounded-[2rem] p-8 text-sm text-slate-600">
-        Loading group details...
-      </div>
-    );
+    return <div className="surface-card p-5 text-sm text-slate-600">Loading group details...</div>;
   }
 
-  if (error) {
+  if (error && !group) {
     return (
       <div className="space-y-4">
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-2xl border border-[#f1c5b8] bg-[#fff1ec] px-4 py-3 text-sm text-[#bf5b37]">
           {error}
         </div>
-        <Link className="text-sm font-medium text-sky-700" to="/dashboard">
-          Back to dashboard
+        <Link className="text-sm font-semibold text-[#159b75]" to="/dashboard?tab=groups">
+          Back to groups
         </Link>
       </div>
     );
@@ -181,285 +180,267 @@ export default function GroupDetail() {
   if (!group) {
     return (
       <div className="space-y-4">
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+        <div className="rounded-2xl border border-[#ead7a8] bg-[#fff8e7] px-4 py-3 text-sm text-[#8c6a25]">
           We couldn&apos;t find that group.
         </div>
-        <Link className="text-sm font-medium text-sky-700" to="/dashboard">
-          Back to dashboard
+        <Link className="text-sm font-semibold text-[#159b75]" to="/dashboard?tab=groups">
+          Back to groups
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <section className="glass-card rounded-[2rem] p-6">
-        <Link className="text-sm font-medium text-sky-700" to="/dashboard">
-          Back to dashboard
+    <div className="space-y-4 pb-6">
+      <section className="rounded-[1.8rem] bg-white px-5 py-5 shadow-[0_12px_30px_rgba(31,41,55,0.05)]">
+        <Link className="text-sm font-semibold text-[#159b75]" to="/dashboard?tab=groups">
+          ‹ Back to groups
         </Link>
-        <div className="mt-4 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-3">
-            <p className="text-sm uppercase tracking-[0.28em] text-sky-700">Group detail</p>
-            <h1 className="text-4xl font-semibold text-slate-900">{group.name}</h1>
-            <p className="text-sm text-slate-600">
-              {group.members.length} members and {expenses.length} expense entries so far
+
+        <div className="mt-4">
+          <p className="text-sm text-slate-500">Group</p>
+          <h1 className="mt-2 text-[2rem] font-semibold text-slate-900">{group.name}</h1>
+          <p className="mt-2 text-sm text-slate-500">
+            {group.members.length} members • {expenses.length} expenses
+          </p>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="soft-card p-4">
+            <p className="text-sm text-slate-500">Your balance</p>
+            <p
+              className={`mt-2 text-2xl font-semibold ${
+                myBalance > 0
+                  ? 'text-[#159b75]'
+                  : myBalance < 0
+                    ? 'text-[#e86e49]'
+                    : 'text-slate-700'
+              }`}
+            >
+              {myBalance > 0 ? '+' : ''}
+              ${Math.abs(myBalance).toFixed(2)}
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="soft-panel rounded-2xl px-4 py-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Created</p>
-              <p className="mt-2 text-lg font-medium text-slate-900">
-                {new Date(group.created_at).toLocaleDateString()}
-              </p>
-            </div>
-            <div className="soft-panel rounded-2xl px-4 py-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Expenses</p>
-              <p className="mt-2 text-lg font-medium text-slate-900">
-                {group._count?.expenses ?? expenses.length}
-              </p>
-            </div>
+          <div className="soft-card p-4">
+            <p className="text-sm text-slate-500">Created</p>
+            <p className="mt-2 text-lg font-semibold text-slate-900">
+              {new Date(group.created_at).toLocaleDateString()}
+            </p>
           </div>
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[0.82fr_1.18fr]">
-        <div className="space-y-6">
-          <section className="glass-card space-y-4 rounded-[2rem] p-6">
-            <div>
-              <h2 className="text-2xl font-semibold text-slate-900">Balances</h2>
-              <p className="mt-1 text-sm text-slate-600">
-                Positive balances should receive money. Negative balances still owe the group.
-              </p>
-            </div>
-
-            {balances.length === 0 ? (
-              <div className="soft-panel rounded-2xl border-dashed p-4 text-sm text-slate-500">
-                No balances yet.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {balances.map((entry) => {
-                  const positive = entry.balance > 0;
-                  const neutral = Math.abs(entry.balance) < 0.01;
-
-                  return (
-                    <div
-                      key={entry.user.id}
-                      className="soft-panel flex items-center justify-between rounded-2xl px-4 py-3"
-                    >
-                      <div>
-                        <p className="font-medium text-slate-900">{entry.user.name}</p>
-                        <p className="text-sm text-slate-500">{entry.user.email}</p>
-                      </div>
-                      <div className="text-right">
-                        <p
-                          className={`text-lg font-semibold ${
-                            neutral
-                              ? 'text-slate-700'
-                              : positive
-                                ? 'text-emerald-600'
-                                : 'text-amber-600'
-                          }`}
-                        >
-                          {entry.balance > 0 ? '+' : ''}
-                          ${Math.abs(entry.balance).toFixed(2)}
-                        </p>
-                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                          {neutral ? 'Settled' : positive ? 'Gets back' : 'Owes'}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <section className="glass-card space-y-4 rounded-[2rem] p-6">
-            <div>
-              <h2 className="text-2xl font-semibold text-slate-900">Suggested settlements</h2>
-              <p className="mt-1 text-sm text-slate-600">
-                These are the fewest payments needed to settle the current balances.
-              </p>
-            </div>
-
-            {settlements.length === 0 ? (
-              <div className="soft-panel rounded-2xl border-dashed p-4 text-sm text-slate-500">
-                Everyone is settled up right now.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {settlements.map((settlement, index) => (
-                  <div
-                    key={`${settlement.from.id}-${settlement.to.id}-${index}`}
-                    className="soft-panel rounded-2xl px-4 py-4"
-                  >
-                    <p className="text-sm text-slate-600">
-                      <span className="font-medium text-slate-900">{settlement.from.name}</span>{' '}
-                      pays <span className="font-medium text-slate-900">{settlement.to.name}</span>
-                    </p>
-                    <p className="mt-2 text-2xl font-semibold text-sky-700">
-                      ${settlement.amount.toFixed(2)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="glass-card space-y-4 rounded-[2rem] p-6">
-            <div>
-              <h2 className="text-2xl font-semibold text-slate-900">Add expense</h2>
-              <p className="mt-1 text-sm text-slate-600">
-                Record what you paid and SmartSplit will divide it evenly across the group.
-              </p>
-            </div>
-
-            <form className="space-y-4" onSubmit={handleAddExpense}>
-              <label className="block space-y-2">
-                <span className="text-sm text-slate-700">Description</span>
-                <input
-                  required
-                  value={expenseForm.description}
-                  onChange={(event) =>
-                    setExpenseForm((current) => ({
-                      ...current,
-                      description: event.target.value,
-                    }))
-                  }
-                  placeholder="Dinner at The Bicycle Thief"
-                  className="form-input"
-                />
-              </label>
-
-              <label className="block space-y-2">
-                <span className="text-sm text-slate-700">Amount paid</span>
-                <input
-                  required
-                  min="0.01"
-                  step="0.01"
-                  type="number"
-                  inputMode="decimal"
-                  value={expenseForm.amount}
-                  onChange={(event) =>
-                    setExpenseForm((current) => ({
-                      ...current,
-                      amount: event.target.value,
-                    }))
-                  }
-                  placeholder="120.00"
-                  className="form-input"
-                />
-              </label>
-
-              <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-                <p className="font-medium">Split preview</p>
-                <p className="mt-1">
-                  {user?.name ?? 'You'} paid. Each of the {group.members.length} member(s) would owe $
-                  {splitPreview.toFixed(2)}.
-                </p>
-              </div>
-
-              <button type="submit" disabled={isAddingExpense} className="primary-button w-full px-4 py-3">
-                {isAddingExpense ? 'Saving expense...' : 'Add expense'}
-              </button>
-            </form>
-          </section>
-
-          <section className="space-y-4 rounded-[2rem] border border-white/10 bg-white/8 p-6">
-            <div>
-              <h2 className="text-2xl font-semibold">Members</h2>
-              <p className="mt-1 text-sm text-slate-400">
-                Add people by email to start recording shared expenses together.
-              </p>
-            </div>
-
-            <form className="space-y-3" onSubmit={handleAddMember}>
-              <label className="block space-y-2">
-                <span className="text-sm text-slate-200">Member email</span>
-                <input
-                  required
-                  type="email"
-                  value={memberEmail}
-                  onChange={(event) => setMemberEmail(event.target.value)}
-                  placeholder="friend@example.com"
-                  className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 outline-none transition focus:border-cyan-300/70 focus:ring-2 focus:ring-cyan-300/25"
-                />
-              </label>
-              <button
-                type="submit"
-                disabled={isAddingMember}
-                className="w-full rounded-2xl bg-cyan-300 px-4 py-3 font-medium text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-cyan-100"
-              >
-                {isAddingMember ? 'Adding member...' : 'Add member'}
-              </button>
-            </form>
-
-            <div className="space-y-3">
-              {group.members.map((member) => (
-                <div
-                  key={member.user.id}
-                  className="rounded-2xl border border-white/10 bg-slate-950/30 px-4 py-3"
-                >
-                  <p className="font-medium text-slate-100">{member.user.name}</p>
-                  <p className="text-sm text-slate-400">{member.user.email}</p>
-                </div>
-              ))}
-            </div>
-          </section>
+      {error ? (
+        <div className="rounded-2xl border border-[#f1c5b8] bg-[#fff1ec] px-4 py-3 text-sm text-[#bf5b37]">
+          {error}
         </div>
+      ) : null}
 
-        <section className="glass-card space-y-4 rounded-[2rem] p-6">
+      <section className="surface-card p-4">
+        <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-semibold text-slate-900">Expense activity</h2>
-            <p className="mt-1 text-sm text-slate-600">
-              New expenses appear here instantly, with payer details and equal-split breakdowns.
+            <h2 className="text-xl font-semibold text-slate-900">Add expense</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Record what you paid and split it equally.
             </p>
           </div>
+        </div>
 
-          {expenses.length === 0 ? (
-            <div className="soft-panel rounded-2xl border-dashed p-6 text-sm text-slate-500">
-              No expenses have been added to this group yet.
+        <form className="mt-4 space-y-4" onSubmit={handleAddExpense}>
+          <input
+            required
+            value={expenseForm.description}
+            onChange={(event) =>
+              setExpenseForm((current) => ({
+                ...current,
+                description: event.target.value,
+              }))
+            }
+            placeholder="Groceries"
+            className="form-input"
+          />
+
+          <input
+            required
+            min="0.01"
+            step="0.01"
+            type="number"
+            inputMode="decimal"
+            value={expenseForm.amount}
+            onChange={(event) =>
+              setExpenseForm((current) => ({
+                ...current,
+                amount: event.target.value,
+              }))
+            }
+            placeholder="94.50"
+            className="form-input"
+          />
+
+          <div className="rounded-2xl bg-[#eef8f4] px-4 py-3 text-sm text-[#116e54]">
+            Split preview: {group.members.length} member(s) would each owe ${splitPreview.toFixed(2)}.
+          </div>
+
+          <button type="submit" disabled={isAddingExpense} className="primary-button w-full px-4 py-4">
+            {isAddingExpense ? 'Saving expense...' : 'Add expense'}
+          </button>
+        </form>
+      </section>
+
+      <section className="surface-card p-4">
+        <div>
+          <h2 className="text-xl font-semibold text-slate-900">Members</h2>
+          <p className="mt-1 text-sm text-slate-500">Add people by email to this group.</p>
+        </div>
+
+        <form className="mt-4 space-y-3" onSubmit={handleAddMember}>
+          <input
+            required
+            autoComplete="email"
+            type="email"
+            value={memberEmail}
+            onChange={(event) => setMemberEmail(event.target.value)}
+            placeholder="friend@example.com"
+            className="form-input"
+          />
+          <button type="submit" disabled={isAddingMember} className="outline-button w-full px-4 py-3">
+            {isAddingMember ? 'Adding member...' : 'Add member'}
+          </button>
+        </form>
+
+        <div className="mt-4 space-y-3">
+          {group.members.map((member) => (
+            <div key={member.user.id} className="soft-card flex items-center gap-3 p-3">
+              <div className="grid h-11 w-11 place-items-center rounded-full bg-[#edf0ef] text-sm font-semibold text-[#159b75]">
+                {member.user.name
+                  .split(' ')
+                  .map((part) => part[0])
+                  .join('')
+                  .slice(0, 2)}
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold text-slate-900">{member.user.name}</p>
+                <p className="truncate text-sm text-slate-500">{member.user.email}</p>
+              </div>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {expenses.map((expense) => (
-                <div key={expense.id} className="soft-panel rounded-2xl px-4 py-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="font-medium text-slate-900">{expense.description}</p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        Paid by {expense.payer.name} on {new Date(expense.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <p className="text-lg font-semibold text-sky-700">
-                      ${Number(expense.amount).toFixed(2)}
+          ))}
+        </div>
+      </section>
+
+      <section className="surface-card p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">Balances</h2>
+            <p className="mt-1 text-sm text-slate-500">See who owes and who gets back.</p>
+          </div>
+        </div>
+
+        {balances.length === 0 ? (
+          <div className="mt-4 text-sm text-slate-500">No balances yet.</div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {balances.map((entry) => (
+              <div key={entry.user.id} className="soft-card flex items-center justify-between p-3">
+                <div>
+                  <p className="font-semibold text-slate-900">{entry.user.name}</p>
+                  <p className="text-sm text-slate-500">{entry.user.email}</p>
+                </div>
+                <div className="text-right">
+                  <p
+                    className={`text-lg font-semibold ${
+                      entry.balance > 0
+                        ? 'text-[#159b75]'
+                        : entry.balance < 0
+                          ? 'text-[#e86e49]'
+                          : 'text-slate-700'
+                    }`}
+                  >
+                    {entry.balance > 0 ? '+' : ''}
+                    ${Math.abs(entry.balance).toFixed(2)}
+                  </p>
+                  <p className="text-xs uppercase tracking-[0.16em] text-slate-400">
+                    {Math.abs(entry.balance) < 0.01
+                      ? 'Settled'
+                      : entry.balance > 0
+                        ? 'Gets back'
+                        : 'Owes'}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="surface-card p-4">
+        <div>
+          <h2 className="text-xl font-semibold text-slate-900">Settle up</h2>
+          <p className="mt-1 text-sm text-slate-500">Suggested payments for the fewest transfers.</p>
+        </div>
+
+        {settlements.length === 0 ? (
+          <div className="mt-4 text-sm text-slate-500">Everyone is settled right now.</div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {settlements.map((settlement, index) => (
+              <div key={`${settlement.from.id}-${settlement.to.id}-${index}`} className="soft-card p-4">
+                <p className="text-sm text-slate-600">
+                  <span className="font-semibold text-slate-900">{settlement.from.name}</span> pays{' '}
+                  <span className="font-semibold text-slate-900">{settlement.to.name}</span>
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-[#159b75]">
+                  ${settlement.amount.toFixed(2)}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="surface-card p-4">
+        <div>
+          <h2 className="text-xl font-semibold text-slate-900">Recent activity</h2>
+          <p className="mt-1 text-sm text-slate-500">Latest expenses in this group.</p>
+        </div>
+
+        {expenses.length === 0 ? (
+          <div className="mt-4 text-sm text-slate-500">No expenses added yet.</div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {expenses.map((expense) => (
+              <div key={expense.id} className="soft-card p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-semibold text-slate-900">{expense.description}</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Paid by {expense.payer.name} on {new Date(expense.created_at).toLocaleDateString()}
                     </p>
                   </div>
-                  {expense.splits?.length ? (
-                    <div className="mt-4 rounded-2xl border border-slate-200 bg-white/75 px-4 py-3">
-                      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Equal split</p>
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                        {expense.splits.map((split) => (
-                          <div
-                            key={split.id}
-                            className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm"
-                          >
-                            <span className="text-slate-600">{split.user.name}</span>
-                            <span className="font-medium text-slate-900">
-                              ${Number(split.amount_owed).toFixed(2)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
+                  <p className="text-lg font-semibold text-[#159b75]">
+                    ${Number(expense.amount).toFixed(2)}
+                  </p>
                 </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
+
+                {expense.splits?.length ? (
+                  <div className="mt-4 rounded-2xl bg-[#f6f7f3] px-3 py-3">
+                    <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Equal split</p>
+                    <div className="mt-3 space-y-2">
+                      {expense.splits.map((split) => (
+                        <div key={split.id} className="flex items-center justify-between text-sm">
+                          <span className="text-slate-600">{split.user.name}</span>
+                          <span className="font-semibold text-slate-900">
+                            ${Number(split.amount_owed).toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
