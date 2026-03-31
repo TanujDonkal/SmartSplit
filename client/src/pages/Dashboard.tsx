@@ -102,7 +102,7 @@ export default function Dashboard() {
       const created = await api.createGroup({ name: groupName.trim() });
       setGroups((current) => [created, ...current]);
       setGroupName('');
-      setSearchParams({ tab: 'groups' });
+      navigate(`/groups/${created.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create group');
     } finally {

@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api';
-import type { Balance, Expense, Group, Settlement } from '../api';
+import type { Balance, Expense, Friend, Group, Settlement } from '../api';
 import { useAuth } from '../context/useAuth';
 
 export default function GroupDetail() {
   const { groupId } = useParams();
   const { user } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [balances, setBalances] = useState<Balance[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
@@ -34,13 +35,15 @@ export default function GroupDetail() {
       setError('');
 
       try {
-        const [groupList, groupExpenses, groupBalances, groupSettlements] = await Promise.all([
+        const [groupList, friendList, groupExpenses, groupBalances, groupSettlements] = await Promise.all([
           api.getGroups(),
+          api.getFriends(),
           api.getGroupExpenses(groupId),
           api.getGroupBalances(groupId),
           api.getGroupSettlements(groupId),
         ]);
         setGroups(groupList);
+        setFriends(friendList);
         setExpenses(groupExpenses);
         setBalances(groupBalances);
         setSettlements(groupSettlements);
@@ -77,6 +80,25 @@ export default function GroupDetail() {
     return mine?.balance ?? 0;
   }, [balances, user?.id]);
 
+  const availableFriends = useMemo(() => {
+    if (!group) {
+      return [];
+    }
+
+    const memberIds = new Set(group.members.map((member) => member.user.id));
+    return friends.filter((friend) => !memberIds.has(friend.id));
+  }, [friends, group]);
+
+  const owesCount = useMemo(
+    () => balances.filter((entry) => entry.balance < -0.01).length,
+    [balances],
+  );
+
+  const getsBackCount = useMemo(
+    () => balances.filter((entry) => entry.balance > 0.01).length,
+    [balances],
+  );
+
   async function refreshGroupSummaries(activeGroupId: string) {
     const [groupBalances, groupSettlements] = await Promise.all([
       api.getGroupBalances(activeGroupId),
@@ -86,10 +108,8 @@ export default function GroupDetail() {
     setSettlements(groupSettlements);
   }
 
-  async function handleAddMember(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!groupId || !memberEmail.trim()) {
+  async function addMemberByEmail(email: string) {
+    if (!groupId || !email.trim()) {
       setError('Member email is required');
       return;
     }
@@ -98,7 +118,7 @@ export default function GroupDetail() {
     setError('');
 
     try {
-      const newMember = await api.addGroupMember(groupId, { email: memberEmail.trim() });
+      const newMember = await api.addGroupMember(groupId, { email: email.trim().toLowerCase() });
       setGroups((current) =>
         current.map((entry) =>
           entry.id === groupId ? { ...entry, members: [...entry.members, newMember] } : entry,
@@ -111,6 +131,11 @@ export default function GroupDetail() {
     } finally {
       setIsAddingMember(false);
     }
+  }
+
+  async function handleAddMember(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await addMemberByEmail(memberEmail);
   }
 
   async function handleAddExpense(event: FormEvent<HTMLFormElement>) {
@@ -181,7 +206,7 @@ export default function GroupDetail() {
     return (
       <div className="space-y-4">
         <div className="rounded-2xl border border-[#ead7a8] bg-[#fff8e7] px-4 py-3 text-sm text-[#8c6a25]">
-          We couldn&apos;t find that group.
+          We couldn't find that group.
         </div>
         <Link className="text-sm font-semibold text-[#36b5ac]" to="/dashboard?tab=groups">
           Back to groups
@@ -194,7 +219,7 @@ export default function GroupDetail() {
     <div className="space-y-4 pb-6">
       <section className="rounded-[1.8rem] bg-white px-5 py-5 shadow-[0_12px_30px_rgba(31,41,55,0.05)]">
         <Link className="text-sm font-semibold text-[#36b5ac]" to="/dashboard?tab=groups">
-          ‹ Back to groups
+          {'<'} Back to groups
         </Link>
 
         <div className="mt-4">
@@ -205,16 +230,12 @@ export default function GroupDetail() {
           </p>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="soft-card p-4">
             <p className="text-sm text-slate-500">Your balance</p>
             <p
               className={`mt-2 text-2xl font-semibold ${
-                myBalance > 0
-                  ? 'text-[#36b5ac]'
-                  : myBalance < 0
-                    ? 'text-[#ff9630]'
-                    : 'text-slate-700'
+                myBalance > 0 ? 'text-[#36b5ac]' : myBalance < 0 ? 'text-[#ff9630]' : 'text-slate-700'
               }`}
             >
               {myBalance > 0 ? '+' : ''}
@@ -227,6 +248,14 @@ export default function GroupDetail() {
               {new Date(group.created_at).toLocaleDateString()}
             </p>
           </div>
+          <div className="soft-card p-4">
+            <p className="text-sm text-slate-500">People who owe</p>
+            <p className="mt-2 text-lg font-semibold text-slate-900">{owesCount}</p>
+          </div>
+          <div className="soft-card p-4">
+            <p className="text-sm text-slate-500">People getting back</p>
+            <p className="mt-2 text-lg font-semibold text-slate-900">{getsBackCount}</p>
+          </div>
         </div>
       </section>
 
@@ -237,47 +266,60 @@ export default function GroupDetail() {
       ) : null}
 
       <section className="surface-card p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-900">Add expense</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Record what you paid and split it equally.
-            </p>
-          </div>
+        <div>
+          <h2 className="text-xl font-semibold text-slate-900">Add expense</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Record what you paid and split it equally across the group.
+          </p>
         </div>
 
         <form className="mt-4 space-y-4" onSubmit={handleAddExpense}>
-          <input
-            required
-            value={expenseForm.description}
-            onChange={(event) =>
-              setExpenseForm((current) => ({
-                ...current,
-                description: event.target.value,
-              }))
-            }
-            placeholder="Groceries"
-            className="form-input"
-          />
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-slate-700">What was it for?</span>
+            <input
+              required
+              value={expenseForm.description}
+              onChange={(event) =>
+                setExpenseForm((current) => ({
+                  ...current,
+                  description: event.target.value,
+                }))
+              }
+              placeholder="Groceries"
+              className="form-input"
+            />
+          </label>
 
-          <input
-            required
-            min="0.01"
-            step="0.01"
-            type="number"
-            inputMode="decimal"
-            value={expenseForm.amount}
-            onChange={(event) =>
-              setExpenseForm((current) => ({
-                ...current,
-                amount: event.target.value,
-              }))
-            }
-            placeholder="94.50"
-            className="form-input"
-          />
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-slate-700">Amount</span>
+            <input
+              required
+              min="0.01"
+              step="0.01"
+              type="number"
+              inputMode="decimal"
+              value={expenseForm.amount}
+              onChange={(event) =>
+                setExpenseForm((current) => ({
+                  ...current,
+                  amount: event.target.value,
+                }))
+              }
+              placeholder="94.50"
+              className="form-input"
+            />
+          </label>
 
-            <div className="rounded-2xl bg-[#eef8f7] px-4 py-3 text-sm text-[#2b938c]">
+          <div className="flex flex-wrap gap-2 text-sm">
+            <span className="rounded-full bg-[#eef8f7] px-3 py-2 font-medium text-[#2b938c]">
+              Paid by you
+            </span>
+            <span className="rounded-full bg-[#f6f7f3] px-3 py-2 font-medium text-slate-600">
+              Split equally
+            </span>
+          </div>
+
+          <div className="rounded-2xl bg-[#eef8f7] px-4 py-3 text-sm text-[#2b938c]">
             Split preview: {group.members.length} member(s) would each owe ${splitPreview.toFixed(2)}.
           </div>
 
@@ -290,22 +332,52 @@ export default function GroupDetail() {
       <section className="surface-card p-4">
         <div>
           <h2 className="text-xl font-semibold text-slate-900">Members</h2>
-          <p className="mt-1 text-sm text-slate-500">Add people by email to this group.</p>
+          <p className="mt-1 text-sm text-slate-500">Add signed-up friends quickly or invite by email.</p>
         </div>
 
+        {availableFriends.length > 0 ? (
+          <div className="mt-4 space-y-3">
+            <p className="text-sm font-semibold text-slate-700">Quick add from your friends</p>
+            <div className="space-y-2">
+              {availableFriends.slice(0, 5).map((friend) => (
+                <div key={friend.id} className="soft-card flex items-center justify-between gap-3 p-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900">{friend.name}</p>
+                    <p className="truncate text-sm text-slate-500">{friend.email}</p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isAddingMember}
+                    onClick={() => void addMemberByEmail(friend.email)}
+                    className="rounded-xl border border-[#cfe7e3] px-3 py-2 text-sm font-semibold text-[#2b938c]"
+                  >
+                    Add
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         <form className="mt-4 space-y-3" onSubmit={handleAddMember}>
-          <input
-            required
-            autoComplete="email"
-            type="email"
-            value={memberEmail}
-            onChange={(event) => setMemberEmail(event.target.value)}
-            placeholder="friend@example.com"
-            className="form-input"
-          />
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-slate-700">Add by email</span>
+            <input
+              required
+              autoComplete="email"
+              type="email"
+              value={memberEmail}
+              onChange={(event) => setMemberEmail(event.target.value)}
+              placeholder="friend@example.com"
+              className="form-input"
+            />
+          </label>
           <button type="submit" disabled={isAddingMember} className="outline-button w-full px-4 py-3">
             {isAddingMember ? 'Adding member...' : 'Add member'}
           </button>
+          <p className="text-sm text-slate-500">
+            The person must already be registered in SmartSplit before you can add them.
+          </p>
         </form>
 
         <div className="mt-4 space-y-3">
@@ -319,7 +391,10 @@ export default function GroupDetail() {
                   .slice(0, 2)}
               </div>
               <div className="min-w-0">
-                <p className="font-semibold text-slate-900">{member.user.name}</p>
+                <p className="font-semibold text-slate-900">
+                  {member.user.name}
+                  {member.user.id === user?.id ? ' (You)' : ''}
+                </p>
                 <p className="truncate text-sm text-slate-500">{member.user.email}</p>
               </div>
             </div>
@@ -388,9 +463,7 @@ export default function GroupDetail() {
                   <span className="font-semibold text-slate-900">{settlement.from.name}</span> pays{' '}
                   <span className="font-semibold text-slate-900">{settlement.to.name}</span>
                 </p>
-                <p className="mt-2 text-2xl font-semibold text-[#36b5ac]">
-                  ${settlement.amount.toFixed(2)}
-                </p>
+                <p className="mt-2 text-2xl font-semibold text-[#36b5ac]">${settlement.amount.toFixed(2)}</p>
               </div>
             ))}
           </div>
@@ -416,9 +489,7 @@ export default function GroupDetail() {
                       Paid by {expense.payer.name} on {new Date(expense.created_at).toLocaleDateString()}
                     </p>
                   </div>
-                  <p className="text-lg font-semibold text-[#36b5ac]">
-                    ${Number(expense.amount).toFixed(2)}
-                  </p>
+                  <p className="text-lg font-semibold text-[#36b5ac]">${Number(expense.amount).toFixed(2)}</p>
                 </div>
 
                 {expense.splits?.length ? (
