@@ -73,7 +73,6 @@ export interface FriendExpense {
   created_at: string;
   payer: AuthUser;
 }
-
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('token');
   const headers: Record<string, string> = {
