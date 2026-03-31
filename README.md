@@ -1,32 +1,43 @@
-# SmartSplit – Expense Sharing Application
+# SmartSplit - Expense Sharing Application
 
 ## Project Overview
 
 SmartSplit is a full-stack expense sharing application inspired by Splitwise.
 
-The goal is to:
-- Create groups
-- Add shared expenses
-- Calculate balances
-- Generate optimized settlement transactions
+Current implemented features:
+- User registration and login
+- Group creation and member management
+- Equal-split expense tracking
+- Balance calculation
+- Settlement suggestions
 
 ## Tech Stack
 
 Frontend:
-- React (planned)
+- React
+- Vite
+- Tailwind CSS
 
 Backend:
 - Node.js
 - Express
-- PostgreSQL (planned)
+- Prisma
+- PostgreSQL
 
 ## Project Structure
 
-- client/ → Frontend application
-- server/ → Backend API
-- docs/ → Research, architecture & schema documentation
+- `client/` - Frontend application
+- `server/` - Backend API
+- `docs/` - Research and product documentation
 
----
+## Documentation
 
-APPD5016 – Self-Directed Study  
+Start with:
+- `docs/features-guide.md`
+- `docs/run-and-status.md`
+- `docs/architecture.md`
+- `docs/schema.md`
+- `docs/settlement-algorithm.md`
+
+APPD5016 - Self-Directed Study  
 Student: Tanuj Kumar

@@ -72,6 +72,15 @@ export default function GroupDetail() {
     return amount / group.members.length;
   }, [expenseForm.amount, group]);
 
+  async function refreshGroupSummaries(activeGroupId: string) {
+    const [groupBalances, groupSettlements] = await Promise.all([
+      api.getGroupBalances(activeGroupId),
+      api.getGroupSettlements(activeGroupId),
+    ]);
+    setBalances(groupBalances);
+    setSettlements(groupSettlements);
+  }
+
   async function handleAddMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -93,12 +102,7 @@ export default function GroupDetail() {
         ),
       );
       setMemberEmail('');
-      const [groupBalances, groupSettlements] = await Promise.all([
-        api.getGroupBalances(groupId),
-        api.getGroupSettlements(groupId),
-      ]);
-      setBalances(groupBalances);
-      setSettlements(groupSettlements);
+      await refreshGroupSummaries(groupId);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to add member');
     } finally {
@@ -145,12 +149,7 @@ export default function GroupDetail() {
         description: '',
         amount: '',
       });
-      const [groupBalances, groupSettlements] = await Promise.all([
-        api.getGroupBalances(groupId),
-        api.getGroupSettlements(groupId),
-      ]);
-      setBalances(groupBalances);
-      setSettlements(groupSettlements);
+      await refreshGroupSummaries(groupId);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to add expense');
     } finally {
@@ -160,7 +159,7 @@ export default function GroupDetail() {
 
   if (isLoading) {
     return (
-      <div className="rounded-[2rem] border border-white/10 bg-white/8 p-8 text-sm text-slate-300">
+      <div className="glass-card rounded-[2rem] p-8 text-sm text-slate-600">
         Loading group details...
       </div>
     );
@@ -169,10 +168,10 @@ export default function GroupDetail() {
   if (error) {
     return (
       <div className="space-y-4">
-        <div className="rounded-2xl border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {error}
         </div>
-        <Link className="text-sm font-medium text-cyan-200" to="/">
+        <Link className="text-sm font-medium text-sky-700" to="/dashboard">
           Back to dashboard
         </Link>
       </div>
@@ -182,10 +181,10 @@ export default function GroupDetail() {
   if (!group) {
     return (
       <div className="space-y-4">
-        <div className="rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
           We couldn&apos;t find that group.
         </div>
-        <Link className="text-sm font-medium text-cyan-200" to="/">
+        <Link className="text-sm font-medium text-sky-700" to="/dashboard">
           Back to dashboard
         </Link>
       </div>
@@ -194,28 +193,30 @@ export default function GroupDetail() {
 
   return (
     <div className="space-y-8">
-      <section className="rounded-[2rem] border border-white/10 bg-white/8 p-6 shadow-2xl shadow-slate-950/30 backdrop-blur">
-        <Link className="text-sm font-medium text-cyan-200" to="/">
+      <section className="glass-card rounded-[2rem] p-6">
+        <Link className="text-sm font-medium text-sky-700" to="/dashboard">
           Back to dashboard
         </Link>
         <div className="mt-4 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-3">
-            <p className="text-sm uppercase tracking-[0.28em] text-cyan-200">Group detail</p>
-            <h1 className="text-4xl font-semibold">{group.name}</h1>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm uppercase tracking-[0.28em] text-sky-700">Group detail</p>
+            <h1 className="text-4xl font-semibold text-slate-900">{group.name}</h1>
+            <p className="text-sm text-slate-600">
               {group.members.length} members and {expenses.length} expense entries so far
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-slate-950/35 px-4 py-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Created</p>
-              <p className="mt-2 text-lg font-medium">
+            <div className="soft-panel rounded-2xl px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Created</p>
+              <p className="mt-2 text-lg font-medium text-slate-900">
                 {new Date(group.created_at).toLocaleDateString()}
               </p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-slate-950/35 px-4 py-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Expenses</p>
-              <p className="mt-2 text-lg font-medium">{group._count?.expenses ?? expenses.length}</p>
+            <div className="soft-panel rounded-2xl px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Expenses</p>
+              <p className="mt-2 text-lg font-medium text-slate-900">
+                {group._count?.expenses ?? expenses.length}
+              </p>
             </div>
           </div>
         </div>
@@ -223,16 +224,16 @@ export default function GroupDetail() {
 
       <div className="grid gap-6 xl:grid-cols-[0.82fr_1.18fr]">
         <div className="space-y-6">
-          <section className="space-y-4 rounded-[2rem] border border-white/10 bg-white/8 p-6">
+          <section className="glass-card space-y-4 rounded-[2rem] p-6">
             <div>
-              <h2 className="text-2xl font-semibold">Balances</h2>
-              <p className="mt-1 text-sm text-slate-400">
+              <h2 className="text-2xl font-semibold text-slate-900">Balances</h2>
+              <p className="mt-1 text-sm text-slate-600">
                 Positive balances should receive money. Negative balances still owe the group.
               </p>
             </div>
 
             {balances.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/15 bg-slate-950/20 p-4 text-sm text-slate-400">
+              <div className="soft-panel rounded-2xl border-dashed p-4 text-sm text-slate-500">
                 No balances yet.
               </div>
             ) : (
@@ -244,26 +245,26 @@ export default function GroupDetail() {
                   return (
                     <div
                       key={entry.user.id}
-                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/30 px-4 py-3"
+                      className="soft-panel flex items-center justify-between rounded-2xl px-4 py-3"
                     >
                       <div>
-                        <p className="font-medium text-slate-100">{entry.user.name}</p>
-                        <p className="text-sm text-slate-400">{entry.user.email}</p>
+                        <p className="font-medium text-slate-900">{entry.user.name}</p>
+                        <p className="text-sm text-slate-500">{entry.user.email}</p>
                       </div>
                       <div className="text-right">
                         <p
                           className={`text-lg font-semibold ${
                             neutral
-                              ? 'text-slate-200'
+                              ? 'text-slate-700'
                               : positive
-                                ? 'text-emerald-300'
-                                : 'text-amber-300'
+                                ? 'text-emerald-600'
+                                : 'text-amber-600'
                           }`}
                         >
                           {entry.balance > 0 ? '+' : ''}
                           ${Math.abs(entry.balance).toFixed(2)}
                         </p>
-                        <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
                           {neutral ? 'Settled' : positive ? 'Gets back' : 'Owes'}
                         </p>
                       </div>
@@ -274,16 +275,16 @@ export default function GroupDetail() {
             )}
           </section>
 
-          <section className="space-y-4 rounded-[2rem] border border-white/10 bg-white/8 p-6">
+          <section className="glass-card space-y-4 rounded-[2rem] p-6">
             <div>
-              <h2 className="text-2xl font-semibold">Suggested settlements</h2>
-              <p className="mt-1 text-sm text-slate-400">
+              <h2 className="text-2xl font-semibold text-slate-900">Suggested settlements</h2>
+              <p className="mt-1 text-sm text-slate-600">
                 These are the fewest payments needed to settle the current balances.
               </p>
             </div>
 
             {settlements.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/15 bg-slate-950/20 p-4 text-sm text-slate-400">
+              <div className="soft-panel rounded-2xl border-dashed p-4 text-sm text-slate-500">
                 Everyone is settled up right now.
               </div>
             ) : (
@@ -291,14 +292,13 @@ export default function GroupDetail() {
                 {settlements.map((settlement, index) => (
                   <div
                     key={`${settlement.from.id}-${settlement.to.id}-${index}`}
-                    className="rounded-2xl border border-white/10 bg-slate-950/30 px-4 py-4"
+                    className="soft-panel rounded-2xl px-4 py-4"
                   >
-                    <p className="text-sm text-slate-300">
-                      <span className="font-medium text-slate-100">{settlement.from.name}</span>{' '}
-                      pays{' '}
-                      <span className="font-medium text-slate-100">{settlement.to.name}</span>
+                    <p className="text-sm text-slate-600">
+                      <span className="font-medium text-slate-900">{settlement.from.name}</span>{' '}
+                      pays <span className="font-medium text-slate-900">{settlement.to.name}</span>
                     </p>
-                    <p className="mt-2 text-2xl font-semibold text-cyan-200">
+                    <p className="mt-2 text-2xl font-semibold text-sky-700">
                       ${settlement.amount.toFixed(2)}
                     </p>
                   </div>
@@ -307,17 +307,17 @@ export default function GroupDetail() {
             )}
           </section>
 
-          <section className="space-y-4 rounded-[2rem] border border-white/10 bg-white/8 p-6">
+          <section className="glass-card space-y-4 rounded-[2rem] p-6">
             <div>
-              <h2 className="text-2xl font-semibold">Add expense</h2>
-              <p className="mt-1 text-sm text-slate-400">
+              <h2 className="text-2xl font-semibold text-slate-900">Add expense</h2>
+              <p className="mt-1 text-sm text-slate-600">
                 Record what you paid and SmartSplit will divide it evenly across the group.
               </p>
             </div>
 
             <form className="space-y-4" onSubmit={handleAddExpense}>
               <label className="block space-y-2">
-                <span className="text-sm text-slate-200">Description</span>
+                <span className="text-sm text-slate-700">Description</span>
                 <input
                   required
                   value={expenseForm.description}
@@ -328,12 +328,12 @@ export default function GroupDetail() {
                     }))
                   }
                   placeholder="Dinner at The Bicycle Thief"
-                  className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 outline-none transition focus:border-cyan-300/70 focus:ring-2 focus:ring-cyan-300/25"
+                  className="form-input"
                 />
               </label>
 
               <label className="block space-y-2">
-                <span className="text-sm text-slate-200">Amount paid</span>
+                <span className="text-sm text-slate-700">Amount paid</span>
                 <input
                   required
                   min="0.01"
@@ -348,115 +348,98 @@ export default function GroupDetail() {
                     }))
                   }
                   placeholder="120.00"
-                  className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 outline-none transition focus:border-cyan-300/70 focus:ring-2 focus:ring-cyan-300/25"
+                  className="form-input"
                 />
               </label>
 
-              <div className="rounded-2xl border border-cyan-300/15 bg-cyan-400/8 px-4 py-3 text-sm text-cyan-100">
+              <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
                 <p className="font-medium">Split preview</p>
-                <p className="mt-1 text-cyan-50/90">
-                  {user?.name ?? 'You'} paid. Each of the {group.members.length} member(s) would owe{' '}
-                  ${splitPreview.toFixed(2)}.
+                <p className="mt-1">
+                  {user?.name ?? 'You'} paid. Each of the {group.members.length} member(s) would owe $
+                  {splitPreview.toFixed(2)}.
                 </p>
               </div>
 
-              <button
-                type="submit"
-                disabled={isAddingExpense}
-                className="w-full rounded-2xl bg-cyan-300 px-4 py-3 font-medium text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-cyan-100"
-              >
+              <button type="submit" disabled={isAddingExpense} className="primary-button w-full px-4 py-3">
                 {isAddingExpense ? 'Saving expense...' : 'Add expense'}
               </button>
             </form>
           </section>
 
-          <section className="space-y-4 rounded-[2rem] border border-white/10 bg-white/8 p-6">
+          <section className="glass-card space-y-4 rounded-[2rem] p-6">
             <div>
-              <h2 className="text-2xl font-semibold">Members</h2>
-              <p className="mt-1 text-sm text-slate-400">
+              <h2 className="text-2xl font-semibold text-slate-900">Members</h2>
+              <p className="mt-1 text-sm text-slate-600">
                 Add people by email to start recording shared expenses together.
               </p>
             </div>
 
             <form className="space-y-3" onSubmit={handleAddMember}>
               <label className="block space-y-2">
-                <span className="text-sm text-slate-200">Member email</span>
+                <span className="text-sm text-slate-700">Member email</span>
                 <input
                   required
                   type="email"
                   value={memberEmail}
                   onChange={(event) => setMemberEmail(event.target.value)}
                   placeholder="friend@example.com"
-                  className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 outline-none transition focus:border-cyan-300/70 focus:ring-2 focus:ring-cyan-300/25"
+                  className="form-input"
                 />
               </label>
-              <button
-                type="submit"
-                disabled={isAddingMember}
-                className="w-full rounded-2xl bg-cyan-300 px-4 py-3 font-medium text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:bg-cyan-100"
-              >
+              <button type="submit" disabled={isAddingMember} className="primary-button w-full px-4 py-3">
                 {isAddingMember ? 'Adding member...' : 'Add member'}
               </button>
             </form>
 
             <div className="space-y-3">
               {group.members.map((member) => (
-                <div
-                  key={member.user.id}
-                  className="rounded-2xl border border-white/10 bg-slate-950/30 px-4 py-3"
-                >
-                  <p className="font-medium text-slate-100">{member.user.name}</p>
-                  <p className="text-sm text-slate-400">{member.user.email}</p>
+                <div key={member.user.id} className="soft-panel rounded-2xl px-4 py-3">
+                  <p className="font-medium text-slate-900">{member.user.name}</p>
+                  <p className="text-sm text-slate-500">{member.user.email}</p>
                 </div>
               ))}
             </div>
           </section>
         </div>
 
-        <section className="space-y-4 rounded-[2rem] border border-white/10 bg-white/8 p-6">
+        <section className="glass-card space-y-4 rounded-[2rem] p-6">
           <div>
-            <h2 className="text-2xl font-semibold">Expense activity</h2>
-            <p className="mt-1 text-sm text-slate-400">
+            <h2 className="text-2xl font-semibold text-slate-900">Expense activity</h2>
+            <p className="mt-1 text-sm text-slate-600">
               New expenses appear here instantly, with payer details and equal-split breakdowns.
             </p>
           </div>
 
           {expenses.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/15 bg-slate-950/20 p-6 text-sm text-slate-400">
+            <div className="soft-panel rounded-2xl border-dashed p-6 text-sm text-slate-500">
               No expenses have been added to this group yet.
             </div>
           ) : (
             <div className="space-y-3">
               {expenses.map((expense) => (
-                <div
-                  key={expense.id}
-                  className="rounded-2xl border border-white/10 bg-slate-950/30 px-4 py-4"
-                >
+                <div key={expense.id} className="soft-panel rounded-2xl px-4 py-4">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="font-medium text-slate-100">{expense.description}</p>
-                      <p className="mt-1 text-sm text-slate-400">
-                        Paid by {expense.payer.name} on{' '}
-                        {new Date(expense.created_at).toLocaleDateString()}
+                      <p className="font-medium text-slate-900">{expense.description}</p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Paid by {expense.payer.name} on {new Date(expense.created_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <p className="text-lg font-semibold text-cyan-200">
+                    <p className="text-lg font-semibold text-sky-700">
                       ${Number(expense.amount).toFixed(2)}
                     </p>
                   </div>
                   {expense.splits?.length ? (
-                    <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/25 px-4 py-3">
-                      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                        Equal split
-                      </p>
+                    <div className="mt-4 rounded-2xl border border-slate-200 bg-white/75 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Equal split</p>
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
                         {expense.splits.map((split) => (
                           <div
                             key={split.id}
-                            className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2 text-sm"
+                            className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-sm"
                           >
-                            <span className="text-slate-300">{split.user.name}</span>
-                            <span className="font-medium text-slate-100">
+                            <span className="text-slate-600">{split.user.name}</span>
+                            <span className="font-medium text-slate-900">
                               ${Number(split.amount_owed).toFixed(2)}
                             </span>
                           </div>

@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: smartsplit-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: smartsplit
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - smartsplit-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  smartsplit-postgres-data:
