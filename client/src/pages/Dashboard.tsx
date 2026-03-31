@@ -1,44 +1,78 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
-import type { Group } from '../api';
+import type { Expense, Group } from '../api';
 import { useAuth } from '../context/useAuth';
 
+type DashboardExpense = Expense & { groupName: string };
+
 export default function Dashboard() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') ?? 'groups';
+
   const [groups, setGroups] = useState<Group[]>([]);
   const [groupName, setGroupName] = useState('');
+  const [recentExpenses, setRecentExpenses] = useState<DashboardExpense[]>([]);
+  const [netBalance, setNetBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!token) {
-      setIsLoading(false);
       setGroups([]);
+      setRecentExpenses([]);
+      setNetBalance(0);
+      setIsLoading(false);
       return;
     }
 
-    void loadGroups();
+    void loadDashboard();
   }, [token]);
 
-  async function loadGroups() {
+  async function loadDashboard() {
     setIsLoading(true);
     setError('');
 
     try {
-      const result = await api.getGroups();
-      setGroups(result);
+      const groupList = await api.getGroups();
+      setGroups(groupList);
+
+      const [balanceLists, expenseLists] = await Promise.all([
+        Promise.all(groupList.map((group) => api.getGroupBalances(group.id))),
+        Promise.all(groupList.map((group) => api.getGroupExpenses(group.id))),
+      ]);
+
+      const overall = groupList.reduce((sum, _group, index) => {
+        const mine = balanceLists[index].find((entry) => entry.user.id === user?.id);
+        return sum + (mine?.balance ?? 0);
+      }, 0);
+      setNetBalance(Math.round(overall * 100) / 100);
+
+      const flattened = groupList.flatMap((group, index) =>
+        expenseLists[index].map((expense) => ({
+          ...expense,
+          groupName: group.name,
+        })),
+      );
+
+      flattened.sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+
+      setRecentExpenses(flattened.slice(0, 10));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load groups');
+      setError(err instanceof Error ? err.message : 'Unable to load dashboard');
     } finally {
       setIsLoading(false);
     }
   }
 
-  async function handleCreateGroup(event: React.FormEvent<HTMLFormElement>) {
+  async function handleCreateGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!token) {
@@ -60,6 +94,7 @@ export default function Dashboard() {
       const created = await api.createGroup({ name: groupName.trim() });
       setGroups((current) => [created, ...current]);
       setGroupName('');
+      setSearchParams({ tab: 'groups' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create group');
     } finally {
@@ -67,169 +102,290 @@ export default function Dashboard() {
     }
   }
 
+  const friends = useMemo(() => {
+    const seen = new Map<string, { name: string; email: string; groups: Set<string> }>();
+
+    for (const group of groups) {
+      for (const member of group.members) {
+        if (member.user.id === user?.id) {
+          continue;
+        }
+
+        const existing = seen.get(member.user.id);
+        if (existing) {
+          existing.groups.add(group.name);
+        } else {
+          seen.set(member.user.id, {
+            name: member.user.name,
+            email: member.user.email,
+            groups: new Set([group.name]),
+          });
+        }
+      }
+    }
+
+    return Array.from(seen.entries()).map(([id, value]) => ({
+      id,
+      ...value,
+    }));
+  }, [groups, user?.id]);
+
+  const balanceTone =
+    netBalance > 0.005 ? 'text-[#159b75]' : netBalance < -0.005 ? 'text-[#e86e49]' : 'text-slate-700';
+
+  const balanceMessage =
+    netBalance > 0.005
+      ? `Overall, you are owed $${Math.abs(netBalance).toFixed(2)}`
+      : netBalance < -0.005
+        ? `Overall, you owe $${Math.abs(netBalance).toFixed(2)}`
+        : 'Overall, you are settled up';
+
+  function promptLogin(message: string) {
+    navigate('/login', { state: { message } });
+  }
+
   return (
-    <div className="space-y-8">
-      <section className="glass-card grid gap-6 rounded-[2rem] p-6 lg:grid-cols-[1.16fr_0.84fr]">
-        <div className="space-y-4">
-          <p className="text-sm uppercase tracking-[0.28em] text-sky-700">Dashboard</p>
-          <h1 className="max-w-2xl text-4xl font-semibold leading-tight text-slate-900">
-            Keep every shared plan tidy, visual, and easy to settle.
-          </h1>
-          <p className="max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-            Create a new group for a trip, household, or event, then jump into the details to manage members and track activity.
-          </p>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="soft-panel rounded-[1.5rem] p-4">
-              <p className="text-sm text-slate-500">Groups</p>
-              <p className="mt-2 text-2xl font-semibold text-slate-900">{groups.length}</p>
-            </div>
-            <div className="soft-panel rounded-[1.5rem] p-4">
-              <p className="text-sm text-slate-500">Experience</p>
-              <p className="mt-2 text-2xl font-semibold text-slate-900">Mobile ready</p>
-            </div>
-            <div className="soft-panel rounded-[1.5rem] p-4">
-              <p className="text-sm text-slate-500">Settlement</p>
-              <p className="mt-2 text-2xl font-semibold text-slate-900">Built in</p>
-            </div>
-          </div>
-        </div>
-
-        <form className="soft-panel rounded-[1.75rem] p-5" onSubmit={handleCreateGroup}>
-          <div className="space-y-2">
-            <h2 className="text-xl font-semibold text-slate-900">Create a group</h2>
-            <p className="text-sm text-slate-600">
-              Start with a clear name so everyone knows what this group is for.
-            </p>
-          </div>
-
-          <label className="mt-5 block space-y-2">
-            <span className="text-sm text-slate-700">Group name</span>
-            <input
-              required
-              value={groupName}
-              onChange={(event) => setGroupName(event.target.value)}
-              placeholder="Halifax weekend trip"
-              className="form-input"
-            />
-          </label>
-
-          <button type="submit" disabled={isCreating} className="primary-button mt-5 w-full px-4 py-3">
-            {token ? (isCreating ? 'Creating group...' : 'Create group') : 'Log in to create a group'}
-          </button>
-        </form>
-      </section>
-
-      {!token ? (
-        <section className="glass-card space-y-5 rounded-[2rem] p-6">
-          <div className="space-y-2">
-            <p className="text-sm uppercase tracking-[0.24em] text-sky-700">Try the workflow</p>
-            <h2 className="text-2xl font-semibold text-slate-900">
-              The app asks for login when you try a protected action.
-            </h2>
-            <p className="text-sm leading-7 text-slate-600">
-              Browse the product first, then sign in when you want to create a group, add a friend, or record an expense.
-            </p>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <button
-              type="button"
-              onClick={() =>
-                navigate('/login', {
-                  state: { message: 'Please log in to create a group.' },
-                })
-              }
-              className="soft-panel rounded-[1.5rem] p-5 text-left transition hover:-translate-y-0.5"
-            >
-              <p className="text-sm text-slate-500">Action</p>
-              <p className="mt-2 text-xl font-semibold text-slate-900">Create group</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Start a shared trip, home, or event workspace.
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                navigate('/login', {
-                  state: { message: 'Please log in to add friends to a group.' },
-                })
-              }
-              className="soft-panel rounded-[1.5rem] p-5 text-left transition hover:-translate-y-0.5"
-            >
-              <p className="text-sm text-slate-500">Action</p>
-              <p className="mt-2 text-xl font-semibold text-slate-900">Add friend</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Invite existing users by email once you are signed in.
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                navigate('/login', {
-                  state: { message: 'Please log in to add an expense.' },
-                })
-              }
-              className="soft-panel rounded-[1.5rem] p-5 text-left transition hover:-translate-y-0.5"
-            >
-              <p className="text-sm text-slate-500">Action</p>
-              <p className="mt-2 text-xl font-semibold text-slate-900">Add expense</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Record who paid and let SmartSplit calculate the split.
-              </p>
-            </button>
-          </div>
-        </section>
-      ) : null}
-
+    <div className="space-y-5 pb-6">
       {error ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-2xl border border-[#f1c5b8] bg-[#fff1ec] px-4 py-3 text-sm text-[#bf5b37]">
           {error}
         </div>
       ) : null}
 
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold text-slate-900">Your groups</h2>
-          <p className="text-sm text-slate-500">{groups.length} total</p>
-        </div>
-
-        {isLoading ? (
-          <div className="glass-card rounded-[2rem] p-8 text-sm text-slate-600">Loading groups...</div>
-        ) : groups.length === 0 ? (
-          <div className="glass-card rounded-[2rem] border-dashed p-8 text-sm text-slate-600">
-            No groups yet. Create your first one above to get started.
+      <section className="rounded-[1.8rem] bg-white px-5 py-5 shadow-[0_12px_30px_rgba(31,41,55,0.05)]">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm text-slate-500">
+              {token ? `Hi, ${user?.name ?? 'there'}` : 'Welcome'}
+            </p>
+            <h1 className={`mt-2 text-[1.9rem] font-semibold leading-tight ${balanceTone}`}>
+              {balanceMessage}
+            </h1>
           </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {groups.map((group) => (
-              <Link
-                key={group.id}
-                to={`/groups/${group.id}`}
-                className="glass-card rounded-[1.75rem] p-5 transition hover:-translate-y-0.5 hover:bg-white/95"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="text-xl font-semibold text-slate-900">{group.name}</h3>
+          <button
+            type="button"
+            onClick={() => setSearchParams({ tab: 'groups' })}
+            className="rounded-full border border-[#d9dbd5] px-3 py-2 text-xs font-semibold text-slate-500"
+          >
+            View groups
+          </button>
+        </div>
+      </section>
+
+      {activeTab === 'friends' && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-[1.75rem] font-semibold text-slate-900">Friends</h2>
+            <button
+              type="button"
+              onClick={() =>
+                token
+                  ? setSearchParams({ tab: 'groups' })
+                  : promptLogin('Please log in to add friends to a group.')
+              }
+              className="text-sm font-semibold text-[#159b75]"
+            >
+              Add friends
+            </button>
+          </div>
+
+          {!token ? (
+            <div className="surface-card p-5 text-sm text-slate-600">
+              Log in first, then add a friend by email from inside a group.
+            </div>
+          ) : friends.length === 0 ? (
+            <div className="surface-card p-5 text-sm text-slate-600">
+              No friends added yet. Create a group and invite people by email.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {friends.map((friend) => (
+                <div key={friend.id} className="surface-card flex items-center gap-4 p-4">
+                  <div className="grid h-12 w-12 place-items-center rounded-full bg-[#ffdfd4] text-sm font-semibold text-[#d96543]">
+                    {friend.name
+                      .split(' ')
+                      .map((part) => part[0])
+                      .join('')
+                      .slice(0, 2)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-slate-900">{friend.name}</p>
+                    <p className="truncate text-sm text-slate-500">{friend.email}</p>
                     <p className="mt-1 text-sm text-slate-500">
-                      Created {new Date(group.created_at).toLocaleDateString()}
+                      In {friend.groups.size} group{friend.groups.size === 1 ? '' : 's'}
                     </p>
                   </div>
-                  <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-medium text-sky-700">
-                    {group._count?.expenses ?? 0} expenses
-                  </span>
                 </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
-                <div className="mt-5 flex items-center justify-between text-sm text-slate-600">
-                  <span>{group.members.length} members</span>
-                  <span className="font-medium text-sky-700">Open group</span>
-                </div>
-              </Link>
-            ))}
+      {activeTab === 'groups' && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-[1.75rem] font-semibold text-slate-900">Groups</h2>
+            <button
+              type="button"
+              onClick={() => {
+                const form = document.getElementById('create-group-form');
+                form?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }}
+              className="text-sm font-semibold text-[#159b75]"
+            >
+              Create group
+            </button>
           </div>
-        )}
-      </section>
+
+          <form id="create-group-form" className="surface-card space-y-3 p-4" onSubmit={handleCreateGroup}>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700">Start a new group</span>
+              <input
+                required
+                value={groupName}
+                onChange={(event) => setGroupName(event.target.value)}
+                placeholder="Trip to Halifax"
+                className="form-input"
+              />
+            </label>
+            <button type="submit" disabled={isCreating} className="primary-button w-full px-4 py-3">
+              {token ? (isCreating ? 'Creating...' : 'Create group') : 'Log in to create a group'}
+            </button>
+          </form>
+
+          {isLoading ? (
+            <div className="surface-card p-5 text-sm text-slate-600">Loading groups...</div>
+          ) : groups.length === 0 ? (
+            <div className="surface-card p-5 text-sm text-slate-600">
+              No groups yet. Start one above and then add your friends.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {groups.map((group) => (
+                <Link key={group.id} to={`/groups/${group.id}`} className="surface-card block p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-lg font-semibold text-slate-900">{group.name}</p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {group.members.length} members
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-[#159b75]">
+                        {group._count?.expenses ?? 0} expense{(group._count?.expenses ?? 0) === 1 ? '' : 's'}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {new Date(group.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {activeTab === 'activity' && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-[1.75rem] font-semibold text-slate-900">Recent activity</h2>
+          </div>
+
+          {!token ? (
+            <div className="surface-card p-5 text-sm text-slate-600">
+              Log in to see your recent shared expense activity.
+            </div>
+          ) : recentExpenses.length === 0 ? (
+            <div className="surface-card p-5 text-sm text-slate-600">
+              No activity yet. Add your first expense from a group.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {recentExpenses.map((expense) => {
+                const isMe = expense.payer.id === user?.id;
+                return (
+                  <div key={`${expense.group_id}-${expense.id}`} className="surface-card flex gap-4 p-4">
+                    <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#eef3ef] text-sm font-semibold text-[#159b75]">
+                      $
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-slate-900">
+                        {isMe ? 'You added' : `${expense.payer.name} added`} "{expense.description}"
+                      </p>
+                      <p className="mt-1 text-sm text-[#159b75]">
+                        ${Number(expense.amount).toFixed(2)} in {expense.groupName}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {new Date(expense.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {activeTab === 'account' && (
+        <section className="space-y-4">
+          <div className="px-1">
+            <h2 className="text-[1.75rem] font-semibold text-slate-900">Account</h2>
+          </div>
+
+          <div className="surface-card p-5">
+            <div className="flex items-center gap-4">
+              <div className="grid h-16 w-16 place-items-center rounded-full bg-[#ffd8cc] text-lg font-semibold text-[#d96543]">
+                {user?.name
+                  ?.split(' ')
+                  .map((part) => part[0])
+                  .join('')
+                  .slice(0, 2) ?? 'U'}
+              </div>
+              <div>
+                <p className="text-xl font-semibold text-slate-900">{user?.name ?? 'Guest'}</p>
+                <p className="text-sm text-slate-500">{user?.email ?? 'Log in to manage your account'}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="surface-card overflow-hidden">
+            <div className="bg-[linear-gradient(135deg,#efe5ff,#f8ecff)] px-5 py-6">
+              <p className="text-lg font-semibold text-slate-900">Do more with SmartSplit</p>
+              <p className="mt-2 text-sm text-slate-600">
+                Keep your household, trip, and friend expenses easy to understand at a glance.
+              </p>
+              <button className="mt-4 rounded-full bg-[#7a51d9] px-5 py-3 text-sm font-semibold text-white">
+                Explore premium-style layout
+              </button>
+            </div>
+
+            <div className="divide-y divide-[#ecece7]">
+              {['Notifications', 'Security', 'Feedback'].map((item) => (
+                <div key={item} className="flex items-center justify-between px-5 py-4 text-sm">
+                  <span className="text-slate-700">{item}</span>
+                  <span className="text-slate-400">›</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <button
+        type="button"
+        onClick={() =>
+          token
+            ? setSearchParams({ tab: 'groups' })
+            : promptLogin('Please log in to add an expense.')
+        }
+        className="floating-action fixed bottom-24 left-1/2 z-20 flex w-[calc(100%-2rem)] max-w-[20rem] -translate-x-1/2 items-center justify-center gap-2 rounded-full bg-[#1aa980] px-5 py-4 text-base font-semibold text-white"
+      >
+        <span className="text-lg leading-none">[]</span>
+        <span>Add expense</span>
+      </button>
     </div>
   );
 }

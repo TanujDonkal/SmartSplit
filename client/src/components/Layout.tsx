@@ -1,9 +1,22 @@
-import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
+
+const tabs = [
+  { key: 'friends', label: 'Friends', icon: 'o' },
+  { key: 'groups', label: 'Groups', icon: 'oo' },
+  { key: 'activity', label: 'Activity', icon: '[]' },
+  { key: 'account', label: 'Account', icon: '@' },
+];
 
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const currentTab =
+    location.pathname.startsWith('/groups/')
+      ? 'groups'
+      : new URLSearchParams(location.search).get('tab') ?? 'groups';
 
   const handleLogout = () => {
     logout();
@@ -12,48 +25,84 @@ export default function Layout() {
 
   return (
     <div className="app-shell">
-      <nav className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/78 px-4 py-4 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-          <Link to="/dashboard" className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[linear-gradient(135deg,_#0f8bff,_#66c4ff)] text-lg font-bold text-white shadow-lg shadow-sky-200/70">
-              S
-            </div>
-            <div>
-              <p className="text-lg font-semibold tracking-[0.02em] text-slate-900">SmartSplit</p>
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
-                Shared expenses, simplified
-              </p>
-            </div>
-          </Link>
-          {user && (
-            <div className="flex items-center gap-3">
-              <div className="hidden rounded-2xl border border-slate-200/70 bg-white/70 px-4 py-2 text-right sm:block">
-                <p className="text-sm font-semibold text-slate-900">{user.name}</p>
-                <p className="text-xs text-slate-500">{user.email}</p>
+      <div className="mobile-shell flex flex-col">
+        <header className="sticky top-0 z-20 border-b border-[#e4e5df] bg-[#fbfbf8]/95 px-5 py-4 backdrop-blur">
+          <div className="flex items-center justify-between gap-3">
+            <Link to="/dashboard?tab=groups" className="flex items-center gap-3">
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#159b75] text-lg font-bold text-white">
+                S
               </div>
+              <div>
+                <p className="text-lg font-semibold text-slate-900">SmartSplit</p>
+                <p className="mini-label">Split bills simply</p>
+              </div>
+            </Link>
+
+            {user ? (
               <button
                 onClick={handleLogout}
-                className="secondary-button px-4 py-2 text-sm font-medium"
+                className="rounded-full border border-[#d6d7d2] bg-white px-4 py-2 text-sm font-semibold text-slate-700"
               >
-                Logout
+                Log out
               </button>
-            </div>
-          )}
-          {!user && (
-            <div className="flex items-center gap-3">
-              <Link className="secondary-button px-4 py-2 text-sm font-medium" to="/login">
-                Log in
-              </Link>
-              <Link className="primary-button px-4 py-2 text-sm" to="/register">
-                Sign up
-              </Link>
-            </div>
-          )}
-        </div>
-      </nav>
-      <main className="mx-auto max-w-6xl p-4 sm:p-6">
-        <Outlet />
-      </main>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/login"
+                  className="rounded-full border border-[#d6d7d2] bg-white px-4 py-2 text-sm font-semibold text-slate-700"
+                >
+                  Log in
+                </Link>
+                <Link
+                  to="/register"
+                  className="rounded-full bg-[#159b75] px-4 py-2 text-sm font-semibold text-white"
+                >
+                  Sign up
+                </Link>
+              </div>
+            )}
+          </div>
+        </header>
+
+        <main className="flex-1 px-4 pb-28 pt-4">
+          <Outlet />
+        </main>
+
+        <nav className="bottom-tab-shadow fixed bottom-0 left-0 right-0 z-30 border-t border-[#e4e5df] bg-white/96 backdrop-blur">
+          <div className="mx-auto grid w-full max-w-[30rem] grid-cols-4 px-3 py-2">
+            {tabs.map((tab) => {
+              const active = currentTab === tab.key;
+              return (
+                <Link
+                  key={tab.key}
+                  to={`/dashboard?tab=${tab.key}`}
+                  className="flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-center"
+                >
+                  <span
+                    className={`text-sm font-semibold ${
+                      active ? 'text-[#159b75]' : 'text-slate-400'
+                    }`}
+                  >
+                    {tab.icon}
+                  </span>
+                  <span
+                    className={`text-xs font-medium ${
+                      active ? 'text-[#159b75]' : 'text-slate-500'
+                    }`}
+                  >
+                    {tab.label}
+                  </span>
+                  <span
+                    className={`mt-1 h-0.5 w-8 rounded-full ${
+                      active ? 'bg-[#159b75]' : 'bg-transparent'
+                    }`}
+                  />
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      </div>
     </div>
   );
 }
