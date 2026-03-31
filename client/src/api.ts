@@ -59,6 +59,12 @@ export interface Settlement {
   amount: number;
 }
 
+export interface Friend {
+  id: string;
+  name: string;
+  email: string;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('token');
   const headers: Record<string, string> = {
@@ -91,6 +97,12 @@ export const api = {
     }),
   register: (data: { name: string; email: string; password: string }) =>
     request<RegisterResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getFriends: () => request<Friend[]>('/friends'),
+  addFriend: (data: { email: string }) =>
+    request<Friend>('/friends', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
