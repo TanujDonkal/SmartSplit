@@ -114,7 +114,7 @@ export default function Login() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm font-medium text-[#13785c]">
+        <p className="mt-6 text-center text-sm font-medium text-[#2b938c]">
           Forgot your password?
         </p>
       </div>

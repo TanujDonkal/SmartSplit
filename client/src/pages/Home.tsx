@@ -37,10 +37,10 @@ export default function Home() {
 
       <div className="w-full overflow-hidden pt-10">
         <div className="flex h-16 items-end gap-2">
-          <div className="h-8 flex-1 rounded-t-[1.6rem] bg-[#2f343d]" />
-          <div className="h-12 flex-1 rounded-t-[1.6rem] bg-[#7a51d9]" />
-          <div className="h-10 flex-1 rounded-t-[1.6rem] bg-[#2ad1b0]" />
-          <div className="h-14 flex-1 rounded-t-[1.6rem] bg-[#ff6f4d]" />
+          <div className="h-8 flex-1 rounded-t-[1.6rem] bg-[#355d74]" />
+          <div className="h-12 flex-1 rounded-t-[1.6rem] bg-[#c7d579]" />
+          <div className="h-10 flex-1 rounded-t-[1.6rem] bg-[#36b5ac]" />
+          <div className="h-14 flex-1 rounded-t-[1.6rem] bg-[#f6b93f]" />
         </div>
       </div>
     </div>

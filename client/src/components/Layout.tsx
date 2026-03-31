@@ -26,7 +26,7 @@ export default function Layout() {
   return (
     <div className="app-shell">
       <div className="mobile-shell flex flex-col">
-        <header className="sticky top-0 z-20 border-b border-[#e4e5df] bg-[#fbfbf8]/95 px-5 py-4 backdrop-blur">
+        <header className="sticky top-0 z-20 border-b border-[#e8e8e0] bg-[#fffdfa]/95 px-5 py-4 backdrop-blur">
           <div className="flex items-center justify-between gap-3">
             <Link to="/dashboard?tab=groups" className="flex items-center gap-3">
               <img
@@ -57,7 +57,7 @@ export default function Layout() {
                 </Link>
                 <Link
                   to="/register"
-                  className="rounded-full bg-[#159b75] px-4 py-2 text-sm font-semibold text-white"
+                  className="rounded-full bg-[#36b5ac] px-4 py-2 text-sm font-semibold text-white"
                 >
                   Sign up
                 </Link>
@@ -82,21 +82,21 @@ export default function Layout() {
                 >
                   <span
                     className={`text-sm font-semibold ${
-                      active ? 'text-[#159b75]' : 'text-slate-400'
+                      active ? 'text-[#36b5ac]' : 'text-slate-400'
                     }`}
                   >
                     {tab.icon}
                   </span>
                   <span
                     className={`text-xs font-medium ${
-                      active ? 'text-[#159b75]' : 'text-slate-500'
+                      active ? 'text-[#36b5ac]' : 'text-slate-500'
                     }`}
                   >
                     {tab.label}
                   </span>
                   <span
                     className={`mt-1 h-0.5 w-8 rounded-full ${
-                      active ? 'bg-[#159b75]' : 'bg-transparent'
+                      active ? 'bg-[#36b5ac]' : 'bg-transparent'
                     }`}
                   />
                 </Link>
