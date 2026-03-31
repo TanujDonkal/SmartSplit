@@ -73,6 +73,15 @@ export interface FriendExpense {
   created_at: string;
   payer: AuthUser;
 }
+
+export interface FriendSummary {
+  friend: Friend;
+  net_balance: number;
+  expense_count: number;
+  you_paid_total: number;
+  friend_paid_total: number;
+  last_activity: string | null;
+}
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('token');
   const headers: Record<string, string> = {
@@ -114,6 +123,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  getFriendSummary: (friendId: string) =>
+    request<FriendSummary>(`/friends/${friendId}/summary`),
   getFriendExpenses: (friendId: string) =>
     request<FriendExpense[]>(`/friends/${friendId}/expenses`),
   addFriendExpense: (

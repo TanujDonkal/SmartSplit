@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import GroupDetail from "./pages/GroupDetail";
+import FriendDetail from "./pages/FriendDetail";
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
           </Route>
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
+              <Route path="/friends/:friendId" element={<FriendDetail />} />
               <Route path="/groups/:groupId" element={<GroupDetail />} />
             </Route>
           </Route>
