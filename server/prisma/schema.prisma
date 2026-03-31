@@ -6,6 +6,11 @@ datasource db {
   provider = "postgresql"
 }
 
+enum FriendExpenseSplitType {
+  EQUAL
+  FULL_AMOUNT
+}
+
 model User {
   id            String          @id @default(uuid())
   name          String
@@ -19,6 +24,7 @@ model User {
   splits         ExpenseSplit[]
   friendshipsA   Friendship[]   @relation("FriendshipUserA")
   friendshipsB   Friendship[]   @relation("FriendshipUserB")
+  friend_expenses FriendExpense[] @relation("FriendExpensePayer")
 
   @@map("users")
 }
@@ -31,9 +37,25 @@ model Friendship {
 
   userA      User     @relation("FriendshipUserA", fields: [user_a_id], references: [id])
   userB      User     @relation("FriendshipUserB", fields: [user_b_id], references: [id])
+  expenses   FriendExpense[]
 
   @@unique([user_a_id, user_b_id])
   @@map("friendships")
+}
+
+model FriendExpense {
+  id           String                @id @default(uuid())
+  friendship_id String
+  payer_id     String
+  amount       Decimal               @db.Decimal(10, 2)
+  description  String
+  split_type   FriendExpenseSplitType
+  created_at   DateTime              @default(now())
+
+  friendship   Friendship            @relation(fields: [friendship_id], references: [id])
+  payer        User                  @relation("FriendExpensePayer", fields: [payer_id], references: [id])
+
+  @@map("friend_expenses")
 }
 
 model Group {
