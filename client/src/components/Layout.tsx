@@ -29,9 +29,11 @@ export default function Layout() {
         <header className="sticky top-0 z-20 border-b border-[#e4e5df] bg-[#fbfbf8]/95 px-5 py-4 backdrop-blur">
           <div className="flex items-center justify-between gap-3">
             <Link to="/dashboard?tab=groups" className="flex items-center gap-3">
-              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[#159b75] text-lg font-bold text-white">
-                S
-              </div>
+              <img
+                src="/smartsplit-logo.png"
+                alt="SmartSplit logo"
+                className="h-11 w-auto object-contain"
+              />
               <div>
                 <p className="text-lg font-semibold text-slate-900">SmartSplit</p>
                 <p className="mini-label">Split bills simply</p>
