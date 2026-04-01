@@ -8,7 +8,7 @@ import { useAuth } from '../context/useAuth';
 type DashboardExpense = Expense & { groupName: string };
 
 export default function Dashboard() {
-  const { token, user } = useAuth();
+  const { token, user, logout } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') ?? 'groups';
@@ -18,10 +18,10 @@ export default function Dashboard() {
   const [groupName, setGroupName] = useState('');
   const [friendEmail, setFriendEmail] = useState('');
   const [recentExpenses, setRecentExpenses] = useState<DashboardExpense[]>([]);
-  const [netBalance, setNetBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isAddingFriend, setIsAddingFriend] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -29,7 +29,6 @@ export default function Dashboard() {
       setGroups([]);
       setFriends([]);
       setRecentExpenses([]);
-      setNetBalance(0);
       setIsLoading(false);
       return;
     }
@@ -49,16 +48,9 @@ export default function Dashboard() {
       setGroups(groupList);
       setFriends(friendList);
 
-      const [balanceLists, expenseLists] = await Promise.all([
-        Promise.all(groupList.map((group) => api.getGroupBalances(group.id))),
-        Promise.all(groupList.map((group) => api.getGroupExpenses(group.id))),
-      ]);
-
-      const overall = groupList.reduce((sum, _group, index) => {
-        const mine = balanceLists[index].find((entry) => entry.user.id === user?.id);
-        return sum + (mine?.balance ?? 0);
-      }, 0);
-      setNetBalance(Math.round(overall * 100) / 100);
+      const expenseLists = await Promise.all(
+        groupList.map((group) => api.getGroupExpenses(group.id)),
+      );
 
       const flattened = groupList.flatMap((group, index) =>
         expenseLists[index].map((expense) => ({
@@ -68,8 +60,7 @@ export default function Dashboard() {
       );
 
       flattened.sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
 
       setRecentExpenses(flattened.slice(0, 10));
@@ -140,18 +131,39 @@ export default function Dashboard() {
     }
   }
 
-  const balanceTone =
-    netBalance > 0.005 ? 'text-[#36b5ac]' : netBalance < -0.005 ? 'text-[#ff9630]' : 'text-slate-700';
-
-  const balanceMessage =
-    netBalance > 0.005
-      ? `Overall, you are owed $${Math.abs(netBalance).toFixed(2)}`
-      : netBalance < -0.005
-        ? `Overall, you owe $${Math.abs(netBalance).toFixed(2)}`
-        : 'Overall, you are settled up';
-
   function promptLogin(message: string) {
     navigate('/login', { state: { message } });
+  }
+
+  async function handleDeleteAccount() {
+    const confirmed = window.confirm(
+      'Delete account? All your SmartSplit data will be deleted and this cannot be undone.',
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const secondConfirm = window.confirm(
+      'Please confirm again: your account and all related data will be permanently deleted.',
+    );
+
+    if (!secondConfirm) {
+      return;
+    }
+
+    setIsDeletingAccount(true);
+    setError('');
+
+    try {
+      await api.deleteAccount();
+      logout();
+      navigate('/', { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to delete account');
+    } finally {
+      setIsDeletingAccount(false);
+    }
   }
 
   return (
@@ -168,8 +180,8 @@ export default function Dashboard() {
             <p className="text-sm text-slate-500">
               {token ? `Hi, ${user?.name ?? 'there'}` : 'Welcome'}
             </p>
-            <h1 className={`mt-2 text-[1.9rem] font-semibold leading-tight ${balanceTone}`}>
-              {balanceMessage}
+            <h1 className="mt-2 text-[1.9rem] font-semibold leading-tight text-slate-700">
+              Overall, you are settled up
             </h1>
           </div>
           <button
@@ -178,7 +190,7 @@ export default function Dashboard() {
             className="action-chip px-3.5 py-2.5 text-sm font-semibold"
           >
             <span className="action-chip-icon">oo</span>
-            <span>View groups</span>
+            <span>Ask AI</span>
           </button>
         </div>
       </section>
@@ -299,9 +311,7 @@ export default function Dashboard() {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-lg font-semibold text-slate-900">{group.name}</p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {group.members.length} members
-                      </p>
+                      <p className="mt-1 text-sm text-slate-500">{group.members.length} members</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-semibold text-[#36b5ac]">
@@ -398,20 +408,35 @@ export default function Dashboard() {
               {['Notifications', 'Security', 'Feedback'].map((item) => (
                 <div key={item} className="flex items-center justify-between px-5 py-4 text-sm">
                   <span className="text-slate-700">{item}</span>
-                  <span className="text-slate-400">›</span>
+                  <span className="text-slate-400">{'>'}</span>
                 </div>
               ))}
             </div>
           </div>
+
+          {token ? (
+            <div className="surface-card border border-[#f6c9bc] p-5">
+              <h3 className="text-lg font-semibold text-slate-900">Delete account</h3>
+              <p className="mt-2 text-sm text-slate-600">
+                Your account and all related data will be permanently deleted. This cannot be undone.
+              </p>
+              <button
+                type="button"
+                disabled={isDeletingAccount}
+                onClick={() => void handleDeleteAccount()}
+                className="mt-4 w-full rounded-xl bg-[#d96543] px-4 py-3 text-sm font-semibold text-white"
+              >
+                {isDeletingAccount ? 'Deleting account...' : 'Delete account'}
+              </button>
+            </div>
+          ) : null}
         </section>
       )}
 
       <button
         type="button"
         onClick={() =>
-          token
-            ? setSearchParams({ tab: 'groups' })
-            : promptLogin('Please log in to add an expense.')
+          token ? setSearchParams({ tab: 'groups' }) : promptLogin('Please log in to add an expense.')
         }
         className="floating-action fixed bottom-24 left-1/2 z-20 flex w-[calc(100%-2rem)] max-w-[20rem] -translate-x-1/2 items-center justify-center gap-2 rounded-full bg-[#36b5ac] px-5 py-4 text-base font-semibold text-white"
       >
