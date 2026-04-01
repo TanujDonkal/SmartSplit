@@ -115,7 +115,9 @@ export default function Login() {
         </form>
 
         <p className="mt-6 text-center text-sm font-medium text-[#2b938c]">
-          Forgot your password?
+          <Link to="/forgot-password" className="underline underline-offset-2">
+            Forgot your password?
+          </Link>
         </p>
       </div>
     </div>

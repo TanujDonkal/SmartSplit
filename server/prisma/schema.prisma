@@ -12,19 +12,20 @@ enum FriendExpenseSplitType {
 }
 
 model User {
-  id            String          @id @default(uuid())
-  name          String
-  email         String          @unique
-  password_hash String
-  created_at    DateTime        @default(now())
+  id                  String             @id @default(uuid())
+  name                String
+  email               String             @unique
+  password_hash       String
+  created_at          DateTime           @default(now())
 
-  created_groups Group[]        @relation("GroupCreator")
-  memberships    GroupMember[]
-  paid_expenses  Expense[]      @relation("ExpensePayer")
-  splits         ExpenseSplit[]
-  friendshipsA   Friendship[]   @relation("FriendshipUserA")
-  friendshipsB   Friendship[]   @relation("FriendshipUserB")
-  friend_expenses FriendExpense[] @relation("FriendExpensePayer")
+  created_groups      Group[]            @relation("GroupCreator")
+  memberships         GroupMember[]
+  paid_expenses       Expense[]          @relation("ExpensePayer")
+  splits              ExpenseSplit[]
+  friendshipsA        Friendship[]       @relation("FriendshipUserA")
+  friendshipsB        Friendship[]       @relation("FriendshipUserB")
+  friend_expenses     FriendExpense[]    @relation("FriendExpensePayer")
+  password_reset_otps PasswordResetOtp[]
 
   @@map("users")
 }
@@ -107,4 +108,17 @@ model ExpenseSplit {
   user        User    @relation(fields: [user_id], references: [id])
 
   @@map("expense_splits")
+}
+
+model PasswordResetOtp {
+  id         String   @id @default(uuid())
+  user_id    String
+  otp_hash   String
+  expires_at DateTime
+  used_at    DateTime?
+  created_at DateTime @default(now())
+
+  user       User     @relation(fields: [user_id], references: [id])
+
+  @@map("password_reset_otps")
 }
