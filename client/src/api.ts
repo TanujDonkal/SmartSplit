@@ -4,6 +4,7 @@ export interface AuthUser {
   id: string;
   name: string;
   email: string;
+  default_currency?: string;
 }
 
 export interface LoginResponse {
@@ -130,6 +131,11 @@ export const api = {
   deleteAccount: () =>
     request<{ message: string }>('/auth/me', {
       method: 'DELETE',
+    }),
+  updateProfile: (data: { name: string; email: string; default_currency: string }) =>
+    request<AuthUser>('/auth/me', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
     }),
   getFriends: () => request<Friend[]>('/friends'),
   addFriend: (data: { email: string }) =>

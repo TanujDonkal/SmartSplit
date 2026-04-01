@@ -3,8 +3,9 @@ import type { ReactNode } from 'react';
 
 interface AuthContextType {
   token: string | null;
-  user: { id: string; name: string; email: string } | null;
-  login: (token: string, user: { id: string; name: string; email: string }) => void;
+  user: { id: string; name: string; email: string; default_currency?: string } | null;
+  login: (token: string, user: { id: string; name: string; email: string; default_currency?: string }) => void;
+  updateUser: (user: { id: string; name: string; email: string; default_currency?: string }) => void;
   logout: () => void;
 }
 
@@ -17,10 +18,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return stored ? JSON.parse(stored) : null;
   });
 
-  const login = (token: string, user: { id: string; name: string; email: string }) => {
+  const login = (token: string, user: { id: string; name: string; email: string; default_currency?: string }) => {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
     setToken(token);
+    setUser(user);
+  };
+
+  const updateUser = (user: { id: string; name: string; email: string; default_currency?: string }) => {
+    localStorage.setItem('user', JSON.stringify(user));
     setUser(user);
   };
 
@@ -43,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ token, user, login, logout }}>
+    <AuthContext.Provider value={{ token, user, login, updateUser, logout }}>
       {children}
     </AuthContext.Provider>
   );

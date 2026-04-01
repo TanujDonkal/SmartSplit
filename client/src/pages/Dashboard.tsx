@@ -8,7 +8,7 @@ import { useAuth } from '../context/useAuth';
 type DashboardExpense = Expense & { groupName: string };
 
 export default function Dashboard() {
-  const { token, user, logout } = useAuth();
+  const { token, user, updateUser, logout } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') ?? 'groups';
@@ -17,10 +17,16 @@ export default function Dashboard() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [groupName, setGroupName] = useState('');
   const [friendEmail, setFriendEmail] = useState('');
+  const [profileForm, setProfileForm] = useState({
+    name: '',
+    email: '',
+    default_currency: 'CAD',
+  });
   const [recentExpenses, setRecentExpenses] = useState<DashboardExpense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isAddingFriend, setIsAddingFriend] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [error, setError] = useState('');
 
@@ -35,6 +41,14 @@ export default function Dashboard() {
 
     void loadDashboard();
   }, [token]);
+
+  useEffect(() => {
+    setProfileForm({
+      name: user?.name ?? '',
+      email: user?.email ?? '',
+      default_currency: user?.default_currency ?? 'CAD',
+    });
+  }, [user?.default_currency, user?.email, user?.name]);
 
   async function loadDashboard() {
     setIsLoading(true);
@@ -163,6 +177,36 @@ export default function Dashboard() {
       setError(err instanceof Error ? err.message : 'Unable to delete account');
     } finally {
       setIsDeletingAccount(false);
+    }
+  }
+
+  async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!token) {
+      promptLogin('Please log in to edit your profile.');
+      return;
+    }
+
+    if (!profileForm.name.trim() || !profileForm.email.trim() || !profileForm.default_currency) {
+      setError('Name, email, and currency are required');
+      return;
+    }
+
+    setIsSavingProfile(true);
+    setError('');
+
+    try {
+      const updated = await api.updateProfile({
+        name: profileForm.name.trim(),
+        email: profileForm.email.trim().toLowerCase(),
+        default_currency: profileForm.default_currency,
+      });
+      updateUser(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to update profile');
+    } finally {
+      setIsSavingProfile(false);
     }
   }
 
@@ -392,6 +436,77 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+
+          <form className="surface-card p-5" onSubmit={handleSaveProfile}>
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-slate-900">Profile settings</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Update your account name, email, and default currency.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Full name</span>
+                <input
+                  required
+                  value={profileForm.name}
+                  onChange={(event) =>
+                    setProfileForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
+                  }
+                  className="form-input"
+                />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Email address</span>
+                <input
+                  required
+                  autoComplete="email"
+                  type="email"
+                  value={profileForm.email}
+                  onChange={(event) =>
+                    setProfileForm((current) => ({
+                      ...current,
+                      email: event.target.value,
+                    }))
+                  }
+                  className="form-input"
+                />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Default currency</span>
+                <select
+                  value={profileForm.default_currency}
+                  onChange={(event) =>
+                    setProfileForm((current) => ({
+                      ...current,
+                      default_currency: event.target.value,
+                    }))
+                  }
+                  className="form-input"
+                >
+                  {['CAD', 'USD', 'EUR', 'GBP', 'INR'].map((currency) => (
+                    <option key={currency} value={currency}>
+                      {currency}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSavingProfile}
+              className="primary-button mt-5 w-full px-4 py-3 text-sm"
+            >
+              {isSavingProfile ? 'Saving profile...' : 'Save profile'}
+            </button>
+          </form>
 
           <div className="surface-card overflow-hidden">
             <div className="bg-[linear-gradient(135deg,#eef8f7,#fff4dc)] px-5 py-6">

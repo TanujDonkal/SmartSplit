@@ -15,6 +15,7 @@ model User {
   id                  String             @id @default(uuid())
   name                String
   email               String             @unique
+  default_currency    String             @default("CAD")
   password_hash       String
   created_at          DateTime           @default(now())
 
