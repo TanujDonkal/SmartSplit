@@ -39,8 +39,13 @@ export interface Expense {
   group_id?: string;
   description: string;
   amount: string;
+  note?: string | null;
+  receipt_data?: string | null;
+  incurred_on: string;
   created_at: string;
+  updated_at?: string;
   payer: AuthUser;
+  comments?: ExpenseComment[];
   splits?: Array<{
     id: string;
     user_id: string;
@@ -71,8 +76,28 @@ export interface FriendExpense {
   description: string;
   amount: string;
   split_type: 'EQUAL' | 'FULL_AMOUNT';
+  activity_type: 'EXPENSE' | 'SETTLEMENT';
+  note?: string | null;
+  receipt_data?: string | null;
+  incurred_on: string;
   created_at: string;
+  updated_at?: string;
   payer: AuthUser;
+  comments?: FriendExpenseComment[];
+}
+
+export interface ExpenseComment {
+  id: string;
+  body: string;
+  created_at: string;
+  author: AuthUser;
+}
+
+export interface FriendExpenseComment {
+  id: string;
+  body: string;
+  created_at: string;
+  author: AuthUser;
 }
 
 export interface FriendSummary {
@@ -154,11 +179,47 @@ export const api = {
       amount: number;
       paid_by: 'self' | 'friend';
       split_type: 'equal' | 'full_amount';
+      note?: string;
+      receipt_data?: string;
+      incurred_on?: string;
     },
   ) =>
     request<FriendExpense>(`/friends/${friendId}/expenses`, {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+  getFriendExpenseDetail: (friendId: string, expenseId: string) =>
+    request<FriendExpense>(`/friends/${friendId}/expenses/${expenseId}`),
+  updateFriendExpense: (
+    friendId: string,
+    expenseId: string,
+    data: {
+      description?: string;
+      amount?: number;
+      paid_by?: 'self' | 'friend';
+      split_type?: 'equal' | 'full_amount';
+      note?: string;
+      receipt_data?: string | null;
+      incurred_on?: string;
+    },
+  ) =>
+    request<FriendExpense>(`/friends/${friendId}/expenses/${expenseId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  deleteFriendExpense: (friendId: string, expenseId: string) =>
+    request<{ message: string }>(`/friends/${friendId}/expenses/${expenseId}`, {
+      method: 'DELETE',
+    }),
+  addFriendExpenseComment: (friendId: string, expenseId: string, data: { body: string }) =>
+    request<FriendExpenseComment>(`/friends/${friendId}/expenses/${expenseId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  settleUpFriend: (friendId: string) =>
+    request<FriendExpense>(`/friends/${friendId}/settle`, {
+      method: 'POST',
+      body: JSON.stringify({}),
     }),
   getGroups: () => request<Group[]>('/groups'),
   createGroup: (data: { name: string }) =>
@@ -171,12 +232,43 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  getGroupExpenses: (groupId: string) => request<Expense[]>(`/expenses/${groupId}`),
+  getGroupExpenses: (groupId: string) => request<Expense[]>(`/expenses/group/${groupId}`),
   getGroupBalances: (groupId: string) => request<Balance[]>(`/groups/${groupId}/balances`),
   getGroupSettlements: (groupId: string) =>
     request<Settlement[]>(`/groups/${groupId}/settlements`),
-  addExpense: (data: { group_id: string; amount: number; description: string }) =>
+  addExpense: (data: {
+    group_id: string;
+    amount: number;
+    description: string;
+    note?: string;
+    receipt_data?: string;
+    incurred_on?: string;
+  }) =>
     request<Expense>('/expenses', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getExpenseDetail: (expenseId: string) => request<Expense>(`/expenses/${expenseId}`),
+  updateExpense: (
+    expenseId: string,
+    data: {
+      description?: string;
+      amount?: number;
+      note?: string;
+      receipt_data?: string | null;
+      incurred_on?: string;
+    },
+  ) =>
+    request<Expense>(`/expenses/${expenseId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  deleteExpense: (expenseId: string) =>
+    request<{ message: string }>(`/expenses/${expenseId}`, {
+      method: 'DELETE',
+    }),
+  addExpenseComment: (expenseId: string, data: { body: string }) =>
+    request<ExpenseComment>(`/expenses/${expenseId}/comments`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),

@@ -9,13 +9,71 @@ function toPair(userId: string, friendId: string) {
     : { user_a_id: friendId, user_b_id: userId };
 }
 
+const friendExpenseInclude = {
+  payer: { select: { id: true, name: true, email: true, default_currency: true } },
+  comments: {
+    include: {
+      author: { select: { id: true, name: true, email: true, default_currency: true } },
+    },
+    orderBy: { created_at: "asc" as const },
+  },
+};
+
 async function getFriendshipOrNull(userId: string, friendId: string) {
   return prisma.friendship.findUnique({
     where: { user_a_id_user_b_id: toPair(userId, friendId) },
     include: {
-      userA: { select: { id: true, name: true, email: true } },
-      userB: { select: { id: true, name: true, email: true } },
+      userA: { select: { id: true, name: true, email: true, default_currency: true } },
+      userB: { select: { id: true, name: true, email: true, default_currency: true } },
     },
+  });
+}
+
+function getFriendSummaryNumbers(
+  activities: Array<{
+    amount: Prisma.Decimal | number;
+    split_type: "EQUAL" | "FULL_AMOUNT";
+    activity_type: "EXPENSE" | "SETTLEMENT";
+    payer: { id: string };
+  }>,
+  userId: string,
+) {
+  let netBalance = 0;
+  let youPaidTotal = 0;
+  let friendPaidTotal = 0;
+
+  activities.forEach((activity) => {
+    const amount = Number(activity.amount);
+    const paidByMe = activity.payer.id === userId;
+
+    if (activity.activity_type === "SETTLEMENT") {
+      netBalance += paidByMe ? -amount : amount;
+      return;
+    }
+
+    const impact = activity.split_type === "FULL_AMOUNT" ? amount : amount / 2;
+
+    if (paidByMe) {
+      youPaidTotal += amount;
+      netBalance += impact;
+    } else {
+      friendPaidTotal += amount;
+      netBalance -= impact;
+    }
+  });
+
+  return {
+    netBalance: Math.round(netBalance * 100) / 100,
+    youPaidTotal: Math.round(youPaidTotal * 100) / 100,
+    friendPaidTotal: Math.round(friendPaidTotal * 100) / 100,
+  };
+}
+
+async function loadFriendActivities(friendshipId: string) {
+  return prisma.friendExpense.findMany({
+    where: { friendship_id: friendshipId },
+    include: friendExpenseInclude,
+    orderBy: [{ incurred_on: "desc" }, { created_at: "desc" }],
   });
 }
 
@@ -34,43 +92,18 @@ export const getFriendSummary = async (
       return;
     }
 
-    const expenses = await prisma.friendExpense.findMany({
-      where: { friendship_id: friendship.id },
-      include: {
-        payer: { select: { id: true, name: true, email: true } },
-      },
-      orderBy: { created_at: "desc" },
-    });
-
+    const activities = await loadFriendActivities(friendship.id);
     const friend =
       friendship.userA.id === userId ? friendship.userB : friendship.userA;
-
-    let netBalance = 0;
-    let youPaidTotal = 0;
-    let friendPaidTotal = 0;
-
-    expenses.forEach((expense) => {
-      const amount = Number(expense.amount);
-      const paidByMe = expense.payer.id === userId;
-      const impact =
-        expense.split_type === "FULL_AMOUNT" ? amount : amount / 2;
-
-      if (paidByMe) {
-        youPaidTotal += amount;
-        netBalance += impact;
-      } else {
-        friendPaidTotal += amount;
-        netBalance -= impact;
-      }
-    });
+    const summary = getFriendSummaryNumbers(activities, userId);
 
     res.json({
       friend,
-      net_balance: Math.round(netBalance * 100) / 100,
-      expense_count: expenses.length,
-      you_paid_total: Math.round(youPaidTotal * 100) / 100,
-      friend_paid_total: Math.round(friendPaidTotal * 100) / 100,
-      last_activity: expenses[0]?.created_at ?? null,
+      net_balance: summary.netBalance,
+      expense_count: activities.length,
+      you_paid_total: summary.youPaidTotal,
+      friend_paid_total: summary.friendPaidTotal,
+      last_activity: activities[0]?.created_at ?? null,
     });
   } catch (error) {
     console.error("Get friend summary error:", error);
@@ -93,18 +126,44 @@ export const getFriendExpenses = async (
       return;
     }
 
-    const expenses = await prisma.friendExpense.findMany({
-      where: { friendship_id: friendship.id },
-      include: {
-        payer: { select: { id: true, name: true, email: true } },
-      },
-      orderBy: { created_at: "desc" },
-    });
-
-    res.json(expenses);
+    const activities = await loadFriendActivities(friendship.id);
+    res.json(activities);
   } catch (error) {
     console.error("Get friend expenses error:", error);
     res.status(500).json({ error: "Failed to fetch friend expenses" });
+  }
+};
+
+export const getFriendExpenseDetail = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  const userId = req.userId!;
+  const friendId = req.params.friendId as string;
+  const expenseId = req.params.expenseId as string;
+
+  try {
+    const friendship = await getFriendshipOrNull(userId, friendId);
+
+    if (!friendship) {
+      res.status(404).json({ error: "Friendship not found" });
+      return;
+    }
+
+    const expense = await prisma.friendExpense.findFirst({
+      where: { id: expenseId, friendship_id: friendship.id },
+      include: friendExpenseInclude,
+    });
+
+    if (!expense) {
+      res.status(404).json({ error: "Friend expense not found" });
+      return;
+    }
+
+    res.json(expense);
+  } catch (error) {
+    console.error("Get friend expense detail error:", error);
+    res.status(500).json({ error: "Failed to fetch friend expense" });
   }
 };
 
@@ -119,11 +178,17 @@ export const addFriendExpense = async (
     amount,
     paid_by,
     split_type,
+    note,
+    receipt_data,
+    incurred_on,
   }: {
     description?: string;
     amount?: number;
     paid_by?: "self" | "friend";
     split_type?: "equal" | "full_amount";
+    note?: string;
+    receipt_data?: string;
+    incurred_on?: string;
   } = req.body;
 
   if (!description?.trim() || !amount || amount <= 0 || !paid_by || !split_type) {
@@ -149,19 +214,225 @@ export const addFriendExpense = async (
         payer_id: payerId,
         amount: new Prisma.Decimal(amount),
         description: description.trim(),
-        split_type:
-          split_type === "equal"
-            ? "EQUAL"
-            : "FULL_AMOUNT",
+        split_type: split_type === "equal" ? "EQUAL" : "FULL_AMOUNT",
+        note: note?.trim() || null,
+        receipt_data: receipt_data?.trim() || null,
+        incurred_on: incurred_on ? new Date(incurred_on) : new Date(),
       },
-      include: {
-        payer: { select: { id: true, name: true, email: true } },
-      },
+      include: friendExpenseInclude,
     });
 
     res.status(201).json(expense);
   } catch (error) {
     console.error("Add friend expense error:", error);
     res.status(500).json({ error: "Failed to add friend expense" });
+  }
+};
+
+export const updateFriendExpense = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  const userId = req.userId!;
+  const friendId = req.params.friendId as string;
+  const expenseId = req.params.expenseId as string;
+  const {
+    description,
+    amount,
+    paid_by,
+    split_type,
+    note,
+    receipt_data,
+    incurred_on,
+  } = req.body as {
+    description?: string;
+    amount?: number;
+    paid_by?: "self" | "friend";
+    split_type?: "equal" | "full_amount";
+    note?: string;
+    receipt_data?: string | null;
+    incurred_on?: string;
+  };
+
+  try {
+    const friendship = await getFriendshipOrNull(userId, friendId);
+
+    if (!friendship) {
+      res.status(404).json({ error: "Friendship not found" });
+      return;
+    }
+
+    const existing = await prisma.friendExpense.findFirst({
+      where: { id: expenseId, friendship_id: friendship.id },
+    });
+
+    if (!existing) {
+      res.status(404).json({ error: "Friend expense not found" });
+      return;
+    }
+
+    const expense = await prisma.friendExpense.update({
+      where: { id: expenseId },
+      data: {
+        description: description?.trim() || existing.description,
+        amount:
+          typeof amount === "number" && amount > 0
+            ? new Prisma.Decimal(amount)
+            : existing.amount,
+        payer_id:
+          paid_by === "self"
+            ? userId
+            : paid_by === "friend"
+              ? friendId
+              : existing.payer_id,
+        split_type:
+          split_type === "equal"
+            ? "EQUAL"
+            : split_type === "full_amount"
+              ? "FULL_AMOUNT"
+              : existing.split_type,
+        note: note === undefined ? existing.note : note?.trim() || null,
+        receipt_data:
+          receipt_data === undefined
+            ? existing.receipt_data
+            : receipt_data?.trim() || null,
+        incurred_on: incurred_on ? new Date(incurred_on) : existing.incurred_on,
+      },
+      include: friendExpenseInclude,
+    });
+
+    res.json(expense);
+  } catch (error) {
+    console.error("Update friend expense error:", error);
+    res.status(500).json({ error: "Failed to update friend expense" });
+  }
+};
+
+export const deleteFriendExpense = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  const userId = req.userId!;
+  const friendId = req.params.friendId as string;
+  const expenseId = req.params.expenseId as string;
+
+  try {
+    const friendship = await getFriendshipOrNull(userId, friendId);
+
+    if (!friendship) {
+      res.status(404).json({ error: "Friendship not found" });
+      return;
+    }
+
+    const existing = await prisma.friendExpense.findFirst({
+      where: { id: expenseId, friendship_id: friendship.id },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      res.status(404).json({ error: "Friend expense not found" });
+      return;
+    }
+
+    await prisma.friendExpense.delete({ where: { id: expenseId } });
+    res.json({ message: "Friend expense deleted" });
+  } catch (error) {
+    console.error("Delete friend expense error:", error);
+    res.status(500).json({ error: "Failed to delete friend expense" });
+  }
+};
+
+export const addFriendExpenseComment = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+    const userId = req.userId!;
+    const friendId = req.params.friendId as string;
+    const expenseId = req.params.expenseId as string;
+    const body = String(req.body.body ?? "").trim();
+
+    if (!body) {
+      res.status(400).json({ error: "Comment text is required" });
+      return;
+    }
+
+    try {
+      const friendship = await getFriendshipOrNull(userId, friendId);
+
+      if (!friendship) {
+        res.status(404).json({ error: "Friendship not found" });
+        return;
+      }
+
+      const existing = await prisma.friendExpense.findFirst({
+        where: { id: expenseId, friendship_id: friendship.id },
+        select: { id: true },
+      });
+
+      if (!existing) {
+        res.status(404).json({ error: "Friend expense not found" });
+        return;
+      }
+
+      const comment = await prisma.friendExpenseComment.create({
+        data: {
+          friend_expense_id: expenseId,
+          author_id: userId,
+          body,
+        },
+        include: {
+          author: { select: { id: true, name: true, email: true, default_currency: true } },
+        },
+      });
+
+      res.status(201).json(comment);
+    } catch (error) {
+      console.error("Add friend expense comment error:", error);
+      res.status(500).json({ error: "Failed to add comment" });
+    }
+};
+
+export const settleUpFriend = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  const userId = req.userId!;
+  const friendId = req.params.friendId as string;
+
+  try {
+    const friendship = await getFriendshipOrNull(userId, friendId);
+
+    if (!friendship) {
+      res.status(404).json({ error: "Friendship not found" });
+      return;
+    }
+
+    const activities = await loadFriendActivities(friendship.id);
+    const summary = getFriendSummaryNumbers(activities, userId);
+
+    if (Math.abs(summary.netBalance) < 0.01) {
+      res.status(400).json({ error: "You are already settled up" });
+      return;
+    }
+
+    const payerId = summary.netBalance < 0 ? userId : friendId;
+
+    const settlement = await prisma.friendExpense.create({
+      data: {
+        friendship_id: friendship.id,
+        payer_id: payerId,
+        amount: new Prisma.Decimal(Math.abs(summary.netBalance)),
+        description: "Settle up",
+        split_type: "FULL_AMOUNT",
+        activity_type: "SETTLEMENT",
+        incurred_on: new Date(),
+      },
+      include: friendExpenseInclude,
+    });
+
+    res.status(201).json(settlement);
+  } catch (error) {
+    console.error("Settle up friend error:", error);
+    res.status(500).json({ error: "Failed to settle up" });
   }
 };
