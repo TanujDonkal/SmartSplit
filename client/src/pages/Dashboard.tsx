@@ -6,11 +6,16 @@ import type { Expense, Friend, Group } from '../api';
 import { useAuth } from '../context/useAuth';
 
 type DashboardExpense = Expense & { groupName: string };
+type ChatMessage = {
+  id: string;
+  role: 'assistant' | 'user';
+  text: string;
+};
 
 export default function Dashboard() {
   const { token, user, updateUser, logout } = useAuth();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') ?? 'groups';
 
   const [groups, setGroups] = useState<Group[]>([]);
@@ -22,6 +27,15 @@ export default function Dashboard() {
     email: '',
     default_currency: 'CAD',
   });
+  const [showAiChat, setShowAiChat] = useState(false);
+  const [aiInput, setAiInput] = useState('');
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      id: 'assistant-welcome',
+      role: 'assistant',
+      text: 'Hi, I am your SmartSplit assistant. Ask me about splitting with a friend, creating a group, or settling balances.',
+    },
+  ]);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [expenseTarget, setExpenseTarget] = useState<'friend' | 'group'>('friend');
   const [selectedFriendId, setSelectedFriendId] = useState('');
@@ -39,6 +53,7 @@ export default function Dashboard() {
       | 'friend_paid_full',
   });
   const [recentExpenses, setRecentExpenses] = useState<DashboardExpense[]>([]);
+  const [dashboardNetBalance, setDashboardNetBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isAddingFriend, setIsAddingFriend] = useState(false);
@@ -52,6 +67,7 @@ export default function Dashboard() {
       setGroups([]);
       setFriends([]);
       setRecentExpenses([]);
+      setDashboardNetBalance(0);
       setIsLoading(false);
       return;
     }
@@ -79,9 +95,11 @@ export default function Dashboard() {
       setGroups(groupList);
       setFriends(friendList);
 
-      const expenseLists = await Promise.all(
-        groupList.map((group) => api.getGroupExpenses(group.id)),
-      );
+      const [expenseLists, groupBalanceLists, friendSummaries] = await Promise.all([
+        Promise.all(groupList.map((group) => api.getGroupExpenses(group.id))),
+        Promise.all(groupList.map((group) => api.getGroupBalances(group.id))),
+        Promise.all(friendList.map((friend) => api.getFriendSummary(friend.id))),
+      ]);
 
       const flattened = groupList.flatMap((group, index) =>
         expenseLists[index].map((expense) => ({
@@ -95,6 +113,18 @@ export default function Dashboard() {
       );
 
       setRecentExpenses(flattened.slice(0, 10));
+
+      const groupNet = groupBalanceLists.reduce((total, balanceList) => {
+        const mine = balanceList.find((entry) => entry.user.id === user?.id);
+        return total + (mine?.balance ?? 0);
+      }, 0);
+
+      const friendNet = friendSummaries.reduce(
+        (total, summary) => total + summary.net_balance,
+        0,
+      );
+
+      setDashboardNetBalance(groupNet + friendNet);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load dashboard');
     } finally {
@@ -164,6 +194,51 @@ export default function Dashboard() {
 
   function promptLogin(message: string) {
     navigate('/login', { state: { message } });
+  }
+
+  function buildAssistantReply(message: string) {
+    const lower = message.toLowerCase();
+
+    if (lower.includes('friend')) {
+      return 'To split with a friend, open Friends, add the friend by their registered email, then use Add expense and choose With a friend.';
+    }
+
+    if (lower.includes('group')) {
+      return 'To split in a group, create or open a group, add members, then use Add expense and choose In a group.';
+    }
+
+    if (lower.includes('settle') || lower.includes('owe') || lower.includes('owed')) {
+      return 'You can settle balances from a friend detail screen using Settle up, or review group settlements inside each group.';
+    }
+
+    if (lower.includes('receipt') || lower.includes('note') || lower.includes('comment')) {
+      return 'Receipts, notes, and comments can be added while creating an expense, and you can update them later from expense details.';
+    }
+
+    return 'I can help with friend splits, group expenses, balances, settlements, receipts, and expense details. Try asking about one of those.';
+  }
+
+  function handleAskAiSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const trimmed = aiInput.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      text: trimmed,
+    };
+    const assistantMessage: ChatMessage = {
+      id: `assistant-${Date.now() + 1}`,
+      role: 'assistant',
+      text: buildAssistantReply(trimmed),
+    };
+
+    setChatMessages((current) => [...current, userMessage, assistantMessage]);
+    setAiInput('');
   }
 
   async function handleDeleteAccount() {
@@ -332,6 +407,20 @@ export default function Dashboard() {
     }
   }
 
+  const dashboardTone =
+    dashboardNetBalance > 0.005
+      ? 'text-[#36b5ac]'
+      : dashboardNetBalance < -0.005
+        ? 'text-[#ff9630]'
+        : 'text-slate-700';
+
+  const dashboardMessage =
+    dashboardNetBalance > 0.005
+      ? `Overall, you are owed $${Math.abs(dashboardNetBalance).toFixed(2)}`
+      : dashboardNetBalance < -0.005
+        ? `Overall, you owe $${Math.abs(dashboardNetBalance).toFixed(2)}`
+        : 'Overall, you are settled up';
+
   return (
     <div className="space-y-5 pb-6">
       {error ? (
@@ -346,13 +435,13 @@ export default function Dashboard() {
             <p className="text-sm text-slate-500">
               {token ? `Hi, ${user?.name ?? 'there'}` : 'Welcome'}
             </p>
-            <h1 className="mt-2 text-[1.9rem] font-semibold leading-tight text-slate-700">
-              Overall, you are settled up
+            <h1 className={`mt-2 text-[1.9rem] font-semibold leading-tight ${dashboardTone}`}>
+              {dashboardMessage}
             </h1>
           </div>
           <button
             type="button"
-            onClick={() => setSearchParams({ tab: 'groups' })}
+            onClick={() => setShowAiChat(true)}
             className="action-chip px-3.5 py-2.5 text-sm font-semibold"
           >
             <span className="action-chip-icon">AI</span>
@@ -864,6 +953,55 @@ export default function Dashboard() {
               >
                 {isSavingQuickExpense ? 'Saving expense...' : 'Save expense'}
               </button>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {showAiChat ? (
+        <div className="fixed inset-0 z-50 bg-slate-900/45 px-4 py-6 backdrop-blur-sm">
+          <div className="mx-auto flex max-h-[calc(100vh-3rem)] w-full max-w-[30rem] flex-col overflow-hidden rounded-[1.8rem] bg-white shadow-[0_20px_60px_rgba(15,23,42,0.22)]">
+            <div className="flex items-center justify-between border-b border-[#e8e8e0] px-5 py-4">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-900">SmartSplit AI</h2>
+                <p className="mt-1 text-sm text-slate-500">Ask about friends, groups, expenses, or settlements.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAiChat(false)}
+                className="grid h-10 w-10 place-items-center rounded-full border border-[#d8ddd9] bg-white text-lg text-slate-500"
+              >
+                x
+              </button>
+            </div>
+
+            <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+              {chatMessages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm ${
+                    message.role === 'assistant'
+                      ? 'bg-[#f4f8f7] text-slate-700'
+                      : 'ml-auto bg-[#36b5ac] text-white'
+                  }`}
+                >
+                  {message.text}
+                </div>
+              ))}
+            </div>
+
+            <form className="border-t border-[#e8e8e0] px-4 py-4" onSubmit={handleAskAiSubmit}>
+              <div className="flex gap-3">
+                <input
+                  value={aiInput}
+                  onChange={(event) => setAiInput(event.target.value)}
+                  placeholder="Ask how to split something..."
+                  className="form-input"
+                />
+                <button type="submit" className="primary-button px-5 py-3 text-sm">
+                  Send
+                </button>
+              </div>
             </form>
           </div>
         </div>
