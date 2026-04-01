@@ -308,3 +308,53 @@ export const deleteAccount = async (
     res.status(500).json({ error: "Failed to delete account" });
   }
 };
+
+export const updateProfile = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  const userId = req.userId!;
+  const name = String(req.body.name ?? "").trim();
+  const email = String(req.body.email ?? "").trim().toLowerCase();
+  const defaultCurrency = String(req.body.default_currency ?? "").trim().toUpperCase();
+
+  if (!name || !email || !defaultCurrency) {
+    res.status(400).json({ error: "Name, email, and default currency are required" });
+    return;
+  }
+
+  try {
+    const existing = await prisma.user.findFirst({
+      where: {
+        email,
+        id: { not: userId },
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      res.status(409).json({ error: "That email is already in use" });
+      return;
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        name,
+        email,
+        default_currency: defaultCurrency,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        default_currency: true,
+      },
+    });
+
+    res.json(user);
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({ error: "Failed to update profile" });
+  }
+};
