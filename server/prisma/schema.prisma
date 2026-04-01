@@ -11,6 +11,11 @@ enum FriendExpenseSplitType {
   FULL_AMOUNT
 }
 
+enum FriendActivityType {
+  EXPENSE
+  SETTLEMENT
+}
+
 model User {
   id                  String             @id @default(uuid())
   name                String
@@ -26,6 +31,8 @@ model User {
   friendshipsA        Friendship[]       @relation("FriendshipUserA")
   friendshipsB        Friendship[]       @relation("FriendshipUserB")
   friend_expenses     FriendExpense[]    @relation("FriendExpensePayer")
+  expense_comments    ExpenseComment[]
+  friend_expense_comments FriendExpenseComment[]
   password_reset_otps PasswordResetOtp[]
 
   @@map("users")
@@ -46,16 +53,22 @@ model Friendship {
 }
 
 model FriendExpense {
-  id           String                @id @default(uuid())
+  id            String                @id @default(uuid())
   friendship_id String
-  payer_id     String
-  amount       Decimal               @db.Decimal(10, 2)
-  description  String
-  split_type   FriendExpenseSplitType
-  created_at   DateTime              @default(now())
+  payer_id      String
+  amount        Decimal               @db.Decimal(10, 2)
+  description   String
+  split_type    FriendExpenseSplitType
+  activity_type FriendActivityType    @default(EXPENSE)
+  note          String?
+  receipt_data  String?
+  incurred_on   DateTime              @default(now())
+  created_at    DateTime              @default(now())
+  updated_at    DateTime              @updatedAt
 
-  friendship   Friendship            @relation(fields: [friendship_id], references: [id])
-  payer        User                  @relation("FriendExpensePayer", fields: [payer_id], references: [id])
+  friendship    Friendship            @relation(fields: [friendship_id], references: [id])
+  payer         User                  @relation("FriendExpensePayer", fields: [payer_id], references: [id])
+  comments      FriendExpenseComment[]
 
   @@map("friend_expenses")
 }
@@ -85,16 +98,21 @@ model GroupMember {
 }
 
 model Expense {
-  id          String         @id @default(uuid())
-  group_id    String
-  payer_id    String
-  amount      Decimal        @db.Decimal(10, 2)
-  description String
-  created_at  DateTime       @default(now())
+  id           String          @id @default(uuid())
+  group_id     String
+  payer_id     String
+  amount       Decimal         @db.Decimal(10, 2)
+  description  String
+  note         String?
+  receipt_data String?
+  incurred_on  DateTime        @default(now())
+  created_at   DateTime        @default(now())
+  updated_at   DateTime        @updatedAt
 
-  group       Group          @relation(fields: [group_id], references: [id])
-  payer       User           @relation("ExpensePayer", fields: [payer_id], references: [id])
-  splits      ExpenseSplit[]
+  group        Group           @relation(fields: [group_id], references: [id])
+  payer        User            @relation("ExpensePayer", fields: [payer_id], references: [id])
+  splits       ExpenseSplit[]
+  comments     ExpenseComment[]
 
   @@map("expenses")
 }
@@ -122,4 +140,30 @@ model PasswordResetOtp {
   user       User     @relation(fields: [user_id], references: [id])
 
   @@map("password_reset_otps")
+}
+
+model ExpenseComment {
+  id         String   @id @default(uuid())
+  expense_id String
+  author_id  String
+  body       String
+  created_at DateTime @default(now())
+
+  expense     Expense @relation(fields: [expense_id], references: [id])
+  author      User    @relation(fields: [author_id], references: [id])
+
+  @@map("expense_comments")
+}
+
+model FriendExpenseComment {
+  id               String       @id @default(uuid())
+  friend_expense_id String
+  author_id        String
+  body             String
+  created_at       DateTime     @default(now())
+
+  friendExpense    FriendExpense @relation(fields: [friend_expense_id], references: [id])
+  author           User          @relation(fields: [author_id], references: [id])
+
+  @@map("friend_expense_comments")
 }

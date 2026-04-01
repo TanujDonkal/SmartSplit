@@ -22,12 +22,29 @@ export default function Dashboard() {
     email: '',
     default_currency: 'CAD',
   });
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [expenseTarget, setExpenseTarget] = useState<'friend' | 'group'>('friend');
+  const [selectedFriendId, setSelectedFriendId] = useState('');
+  const [selectedGroupId, setSelectedGroupId] = useState('');
+  const [quickExpenseForm, setQuickExpenseForm] = useState({
+    description: '',
+    amount: '',
+    note: '',
+    incurred_on: new Date().toISOString().slice(0, 10),
+    receipt_data: '',
+    option: 'you_paid_equal' as
+      | 'you_paid_equal'
+      | 'friend_paid_equal'
+      | 'you_paid_full'
+      | 'friend_paid_full',
+  });
   const [recentExpenses, setRecentExpenses] = useState<DashboardExpense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isAddingFriend, setIsAddingFriend] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [isSavingQuickExpense, setIsSavingQuickExpense] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -210,6 +227,111 @@ export default function Dashboard() {
     }
   }
 
+  async function readFileAsDataUrl(file: File) {
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ''));
+      reader.onerror = () => reject(new Error('Unable to read receipt image'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function resetQuickExpenseForm() {
+    setQuickExpenseForm({
+      description: '',
+      amount: '',
+      note: '',
+      incurred_on: new Date().toISOString().slice(0, 10),
+      receipt_data: '',
+      option: 'you_paid_equal',
+    });
+  }
+
+  async function handleQuickReceiptChange(file: File | null) {
+    if (!file) {
+      setQuickExpenseForm((current) => ({ ...current, receipt_data: '' }));
+      return;
+    }
+
+    try {
+      const receiptData = await readFileAsDataUrl(file);
+      setQuickExpenseForm((current) => ({ ...current, receipt_data: receiptData }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to read receipt');
+    }
+  }
+
+  async function handleQuickExpenseSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!token) {
+      promptLogin('Please log in to add an expense.');
+      return;
+    }
+
+    const amount = Number(quickExpenseForm.amount);
+    if (!quickExpenseForm.description.trim() || !Number.isFinite(amount) || amount <= 0) {
+      setError('Enter a description and an amount greater than zero');
+      return;
+    }
+
+    setIsSavingQuickExpense(true);
+    setError('');
+
+    try {
+      if (expenseTarget === 'friend') {
+        if (!selectedFriendId) {
+          throw new Error('Select a friend first');
+        }
+
+        const payloadByOption: Record<
+          typeof quickExpenseForm.option,
+          { paid_by: 'self' | 'friend'; split_type: 'equal' | 'full_amount' }
+        > = {
+          you_paid_equal: { paid_by: 'self', split_type: 'equal' },
+          friend_paid_equal: { paid_by: 'friend', split_type: 'equal' },
+          you_paid_full: { paid_by: 'self', split_type: 'full_amount' },
+          friend_paid_full: { paid_by: 'friend', split_type: 'full_amount' },
+        };
+
+        await api.addFriendExpense(selectedFriendId, {
+          description: quickExpenseForm.description.trim(),
+          amount,
+          note: quickExpenseForm.note.trim(),
+          receipt_data: quickExpenseForm.receipt_data || undefined,
+          incurred_on: new Date(`${quickExpenseForm.incurred_on}T12:00:00`).toISOString(),
+          ...payloadByOption[quickExpenseForm.option],
+        });
+
+        setShowExpenseModal(false);
+        resetQuickExpenseForm();
+        navigate(`/friends/${selectedFriendId}`);
+        return;
+      }
+
+      if (!selectedGroupId) {
+        throw new Error('Select a group first');
+      }
+
+      await api.addExpense({
+        group_id: selectedGroupId,
+        description: quickExpenseForm.description.trim(),
+        amount,
+        note: quickExpenseForm.note.trim(),
+        receipt_data: quickExpenseForm.receipt_data || undefined,
+        incurred_on: new Date(`${quickExpenseForm.incurred_on}T12:00:00`).toISOString(),
+      });
+
+      setShowExpenseModal(false);
+      resetQuickExpenseForm();
+      navigate(`/groups/${selectedGroupId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to add expense');
+    } finally {
+      setIsSavingQuickExpense(false);
+    }
+  }
+
   return (
     <div className="space-y-5 pb-6">
       {error ? (
@@ -233,7 +355,7 @@ export default function Dashboard() {
             onClick={() => setSearchParams({ tab: 'groups' })}
             className="action-chip px-3.5 py-2.5 text-sm font-semibold"
           >
-            <span className="action-chip-icon">oo</span>
+            <span className="action-chip-icon">AI</span>
             <span>Ask AI</span>
           </button>
         </div>
@@ -551,13 +673,201 @@ export default function Dashboard() {
       <button
         type="button"
         onClick={() =>
-          token ? setSearchParams({ tab: 'groups' }) : promptLogin('Please log in to add an expense.')
+          token ? setShowExpenseModal(true) : promptLogin('Please log in to add an expense.')
         }
         className="floating-action fixed bottom-24 left-1/2 z-20 flex w-[calc(100%-2rem)] max-w-[20rem] -translate-x-1/2 items-center justify-center gap-2 rounded-full bg-[#36b5ac] px-5 py-4 text-base font-semibold text-white"
       >
         <span className="text-lg leading-none">[]</span>
         <span>Add expense</span>
       </button>
+
+      {showExpenseModal ? (
+        <div className="fixed inset-0 z-40 bg-slate-900/45 px-4 py-6 backdrop-blur-sm">
+          <div className="mx-auto max-h-[calc(100vh-3rem)] w-full max-w-[30rem] overflow-y-auto rounded-[1.8rem] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.22)]">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-2xl font-semibold text-slate-900">Add expense</h2>
+                <p className="mt-1 text-sm text-slate-500">Choose whether this is with a friend or in a group.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowExpenseModal(false);
+                  resetQuickExpenseForm();
+                }}
+                className="grid h-10 w-10 place-items-center rounded-full border border-[#d8ddd9] bg-white text-lg text-slate-500"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setExpenseTarget('friend')}
+                className={`rounded-2xl px-4 py-3 text-sm font-semibold ${
+                  expenseTarget === 'friend'
+                    ? 'bg-[#36b5ac] text-white'
+                    : 'bg-[#f4f6f4] text-slate-700'
+                }`}
+              >
+                With a friend
+              </button>
+              <button
+                type="button"
+                onClick={() => setExpenseTarget('group')}
+                className={`rounded-2xl px-4 py-3 text-sm font-semibold ${
+                  expenseTarget === 'group'
+                    ? 'bg-[#36b5ac] text-white'
+                    : 'bg-[#f4f6f4] text-slate-700'
+                }`}
+              >
+                In a group
+              </button>
+            </div>
+
+            <form className="mt-5 space-y-4" onSubmit={handleQuickExpenseSubmit}>
+              {expenseTarget === 'friend' ? (
+                <label className="block space-y-2">
+                  <span className="text-sm font-medium text-slate-700">Choose friend</span>
+                  <select
+                    value={selectedFriendId}
+                    onChange={(event) => setSelectedFriendId(event.target.value)}
+                    className="form-input"
+                  >
+                    <option value="">Select a friend</option>
+                    {friends.map((friend) => (
+                      <option key={friend.id} value={friend.id}>
+                        {friend.name} ({friend.email})
+                      </option>
+                    ))}
+                  </select>
+                  {friends.length === 0 ? (
+                    <p className="text-sm text-slate-500">
+                      Add a friend first from the Friends tab before creating a direct expense.
+                    </p>
+                  ) : null}
+                </label>
+              ) : (
+                <label className="block space-y-2">
+                  <span className="text-sm font-medium text-slate-700">Choose group</span>
+                  <select
+                    value={selectedGroupId}
+                    onChange={(event) => setSelectedGroupId(event.target.value)}
+                    className="form-input"
+                  >
+                    <option value="">Select a group</option>
+                    {groups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </select>
+                  {groups.length === 0 ? (
+                    <p className="text-sm text-slate-500">
+                      Create a group first from the Groups tab before adding a group expense.
+                    </p>
+                  ) : null}
+                </label>
+              )}
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Description</span>
+                <input
+                  required
+                  value={quickExpenseForm.description}
+                  onChange={(event) =>
+                    setQuickExpenseForm((current) => ({ ...current, description: event.target.value }))
+                  }
+                  placeholder="Dinner"
+                  className="form-input"
+                />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Amount</span>
+                <input
+                  required
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={quickExpenseForm.amount}
+                  onChange={(event) =>
+                    setQuickExpenseForm((current) => ({ ...current, amount: event.target.value }))
+                  }
+                  placeholder="20"
+                  className="form-input"
+                />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Expense date</span>
+                <input
+                  type="date"
+                  value={quickExpenseForm.incurred_on}
+                  onChange={(event) =>
+                    setQuickExpenseForm((current) => ({ ...current, incurred_on: event.target.value }))
+                  }
+                  className="form-input"
+                />
+              </label>
+
+              {expenseTarget === 'friend' ? (
+                <label className="block space-y-2">
+                  <span className="text-sm font-medium text-slate-700">How should this split work?</span>
+                  <select
+                    value={quickExpenseForm.option}
+                    onChange={(event) =>
+                      setQuickExpenseForm((current) => ({
+                        ...current,
+                        option: event.target.value as typeof current.option,
+                      }))
+                    }
+                    className="form-input"
+                  >
+                    <option value="you_paid_equal">You paid, split equally</option>
+                    <option value="friend_paid_equal">Friend paid, split equally</option>
+                    <option value="you_paid_full">You paid, friend owes full amount</option>
+                    <option value="friend_paid_full">Friend paid, you owe full amount</option>
+                  </select>
+                </label>
+              ) : null}
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Optional note</span>
+                <textarea
+                  rows={3}
+                  value={quickExpenseForm.note}
+                  onChange={(event) =>
+                    setQuickExpenseForm((current) => ({ ...current, note: event.target.value }))
+                  }
+                  placeholder="Add a quick note"
+                  className="form-input resize-none"
+                />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Optional receipt photo</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => void handleQuickReceiptChange(event.target.files?.[0] ?? null)}
+                  className="form-input"
+                />
+              </label>
+
+              <button
+                type="submit"
+                disabled={isSavingQuickExpense}
+                className="primary-button w-full px-4 py-4 text-lg"
+              >
+                {isSavingQuickExpense ? 'Saving expense...' : 'Save expense'}
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
