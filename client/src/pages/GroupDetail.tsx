@@ -31,6 +31,7 @@ export default function GroupDetail() {
   const [balances, setBalances] = useState<Balance[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [showAddExpenseForm, setShowAddExpenseForm] = useState(false);
   const [memberEmail, setMemberEmail] = useState('');
   const [commentBody, setCommentBody] = useState('');
   const [expenseForm, setExpenseForm] = useState({
@@ -255,6 +256,7 @@ export default function GroupDetail() {
         incurred_on: new Date().toISOString().slice(0, 10),
         receipt_data: '',
       });
+      setShowAddExpenseForm(false);
       await refreshGroupData(groupId);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to add expense');
@@ -430,104 +432,115 @@ export default function GroupDetail() {
       ) : null}
 
       <section className="surface-card p-4">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-900">Add expense</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Record what you paid and split it equally across the group.
-          </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">Add expense</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Open the form only when you want to record a new group expense.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAddExpenseForm((current) => !current)}
+            className="outline-button px-4 py-3 text-sm"
+          >
+            {showAddExpenseForm ? 'Close form' : 'Add expense'}
+          </button>
         </div>
 
-        <form className="mt-4 space-y-4" onSubmit={handleAddExpense}>
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">What was it for?</span>
-            <input
-              required
-              value={expenseForm.description}
-              onChange={(event) =>
-                setExpenseForm((current) => ({ ...current, description: event.target.value }))
-              }
-              placeholder="Groceries"
-              className="form-input"
-            />
-          </label>
+        {showAddExpenseForm ? (
+          <form className="mt-4 space-y-4" onSubmit={handleAddExpense}>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700">What was it for?</span>
+              <input
+                required
+                value={expenseForm.description}
+                onChange={(event) =>
+                  setExpenseForm((current) => ({ ...current, description: event.target.value }))
+                }
+                placeholder="Groceries"
+                className="form-input"
+              />
+            </label>
 
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Amount</span>
-            <input
-              required
-              min="0.01"
-              step="0.01"
-              type="number"
-              inputMode="decimal"
-              value={expenseForm.amount}
-              onChange={(event) =>
-                setExpenseForm((current) => ({ ...current, amount: event.target.value }))
-              }
-              placeholder="94.50"
-              className="form-input"
-            />
-          </label>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700">Amount</span>
+              <input
+                required
+                min="0.01"
+                step="0.01"
+                type="number"
+                inputMode="decimal"
+                value={expenseForm.amount}
+                onChange={(event) =>
+                  setExpenseForm((current) => ({ ...current, amount: event.target.value }))
+                }
+                placeholder="94.50"
+                className="form-input"
+              />
+            </label>
 
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Expense date</span>
-            <input
-              type="date"
-              value={expenseForm.incurred_on}
-              onChange={(event) =>
-                setExpenseForm((current) => ({ ...current, incurred_on: event.target.value }))
-              }
-              className="form-input"
-            />
-          </label>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700">Expense date</span>
+              <input
+                type="date"
+                value={expenseForm.incurred_on}
+                onChange={(event) =>
+                  setExpenseForm((current) => ({ ...current, incurred_on: event.target.value }))
+                }
+                className="form-input"
+              />
+            </label>
 
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Optional note</span>
-            <textarea
-              rows={3}
-              value={expenseForm.note}
-              onChange={(event) =>
-                setExpenseForm((current) => ({ ...current, note: event.target.value }))
-              }
-              placeholder="Anything important about this expense"
-              className="form-input resize-none"
-            />
-          </label>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700">Optional note</span>
+              <textarea
+                rows={3}
+                value={expenseForm.note}
+                onChange={(event) =>
+                  setExpenseForm((current) => ({ ...current, note: event.target.value }))
+                }
+                placeholder="Anything important about this expense"
+                className="form-input resize-none"
+              />
+            </label>
 
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Optional receipt photo</span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(event) => void handleReceiptChange(event, 'create')}
-              className="form-input"
-            />
-          </label>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700">Optional receipt photo</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => void handleReceiptChange(event, 'create')}
+                className="form-input"
+              />
+            </label>
 
-          {expenseForm.receipt_data ? (
-            <img
-              src={expenseForm.receipt_data}
-              alt="Receipt preview"
-              className="h-40 w-full rounded-2xl object-cover"
-            />
-          ) : null}
+            {expenseForm.receipt_data ? (
+              <img
+                src={expenseForm.receipt_data}
+                alt="Receipt preview"
+                className="h-40 w-full rounded-2xl object-cover"
+              />
+            ) : null}
 
-          <div className="flex flex-wrap gap-2 text-sm">
-            <span className="rounded-full bg-[#eef8f7] px-3 py-2 font-medium text-[#2b938c]">
-              Paid by you
-            </span>
-            <span className="rounded-full bg-[#f6f7f3] px-3 py-2 font-medium text-slate-600">
-              Split equally
-            </span>
-          </div>
+            <div className="flex flex-wrap gap-2 text-sm">
+              <span className="rounded-full bg-[#eef8f7] px-3 py-2 font-medium text-[#2b938c]">
+                Paid by you
+              </span>
+              <span className="rounded-full bg-[#f6f7f3] px-3 py-2 font-medium text-slate-600">
+                Split equally
+              </span>
+            </div>
 
-          <div className="rounded-2xl bg-[#eef8f7] px-4 py-3 text-sm text-[#2b938c]">
-            Split preview: {group.members.length} member(s) would each owe ${splitPreview.toFixed(2)}.
-          </div>
+            <div className="rounded-2xl bg-[#eef8f7] px-4 py-3 text-sm text-[#2b938c]">
+              Split preview: {group.members.length} member(s) would each owe ${splitPreview.toFixed(2)}.
+            </div>
 
-          <button type="submit" disabled={isAddingExpense} className="primary-button w-full px-4 py-4">
-            {isAddingExpense ? 'Saving expense...' : 'Add expense'}
-          </button>
-        </form>
+            <button type="submit" disabled={isAddingExpense} className="primary-button w-full px-4 py-4">
+              {isAddingExpense ? 'Saving expense...' : 'Save expense'}
+            </button>
+          </form>
+        ) : null}
       </section>
 
       <section className="surface-card p-4">

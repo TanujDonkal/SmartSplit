@@ -44,6 +44,7 @@ export default function FriendDetail() {
   const [summary, setSummary] = useState<FriendSummary | null>(null);
   const [expenses, setExpenses] = useState<FriendExpense[]>([]);
   const [selectedExpense, setSelectedExpense] = useState<FriendExpense | null>(null);
+  const [showAddExpenseForm, setShowAddExpenseForm] = useState(false);
   const [commentBody, setCommentBody] = useState('');
   const [form, setForm] = useState({
     description: '',
@@ -252,6 +253,7 @@ export default function FriendDetail() {
         incurred_on: new Date().toISOString().slice(0, 10),
         receipt_data: '',
       });
+      setShowAddExpenseForm(false);
       await loadFriendDetail(friendId);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to save expense');
@@ -462,118 +464,124 @@ export default function FriendDetail() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                document.getElementById('friend-expense-form')?.scrollIntoView({
-                  behavior: 'smooth',
-                  block: 'center',
-                });
-              }}
+              onClick={() => setShowAddExpenseForm((current) => !current)}
               className="outline-button flex-1 px-4 py-3 text-sm"
             >
-              Add expense
+              {showAddExpenseForm ? 'Close form' : 'Add expense'}
             </button>
           </div>
         </div>
       </section>
 
-      <section id="friend-expense-form" className="surface-card space-y-4 p-5">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-900">Add an expense</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Create a direct split with {summary.friend.name}, including date, note, and receipt if needed.
-          </p>
-        </div>
-
-        <form className="space-y-3" onSubmit={handleAddExpense}>
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Description</span>
-            <input
-              required
-              value={form.description}
-              onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-              placeholder="Food"
-              className="form-input"
-            />
-          </label>
-
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Amount</span>
-            <input
-              required
-              type="number"
-              min="0.01"
-              step="0.01"
-              inputMode="decimal"
-              value={form.amount}
-              onChange={(event) => setForm((current) => ({ ...current, amount: event.target.value }))}
-              placeholder="20"
-              className="form-input"
-            />
-          </label>
-
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Expense date</span>
-            <input
-              type="date"
-              value={form.incurred_on}
-              onChange={(event) => setForm((current) => ({ ...current, incurred_on: event.target.value }))}
-              className="form-input"
-            />
-          </label>
-
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Split details</span>
-            <select
-              value={form.option}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  option: event.target.value as FriendExpenseOption,
-                }))
-              }
-              className="form-input"
+      {showAddExpenseForm ? (
+        <section id="friend-expense-form" className="surface-card space-y-4 p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900">Add an expense</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Create a direct split with {summary.friend.name}, including date, note, and receipt if needed.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAddExpenseForm(false)}
+              className="text-sm font-semibold text-[#36b5ac]"
             >
-              <option value="you_paid_equal">You paid, split equally</option>
-              <option value="friend_paid_equal">{summary.friend.name} paid, split equally</option>
-              <option value="you_paid_full">You paid, {summary.friend.name} owes the full amount</option>
-              <option value="friend_paid_full">{summary.friend.name} paid, you owe the full amount</option>
-            </select>
-          </label>
+              Close
+            </button>
+          </div>
 
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Optional note</span>
-            <textarea
-              rows={3}
-              value={form.note}
-              onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
-              placeholder="Anything helpful to remember later"
-              className="form-input resize-none"
-            />
-          </label>
+          <form className="space-y-3" onSubmit={handleAddExpense}>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700">Description</span>
+              <input
+                required
+                value={form.description}
+                onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+                placeholder="Food"
+                className="form-input"
+              />
+            </label>
 
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Optional receipt photo</span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(event) => void handleReceiptChange(event, 'create')}
-              className="form-input"
-            />
-          </label>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700">Amount</span>
+              <input
+                required
+                type="number"
+                min="0.01"
+                step="0.01"
+                inputMode="decimal"
+                value={form.amount}
+                onChange={(event) => setForm((current) => ({ ...current, amount: event.target.value }))}
+                placeholder="20"
+                className="form-input"
+              />
+            </label>
 
-          {form.receipt_data ? (
-            <img
-              src={form.receipt_data}
-              alt="Receipt preview"
-              className="h-40 w-full rounded-2xl object-cover"
-            />
-          ) : null}
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700">Expense date</span>
+              <input
+                type="date"
+                value={form.incurred_on}
+                onChange={(event) => setForm((current) => ({ ...current, incurred_on: event.target.value }))}
+                className="form-input"
+              />
+            </label>
 
-          <button type="submit" disabled={isSaving} className="primary-button w-full px-4 py-3">
-            {isSaving ? 'Saving expense...' : 'Save expense'}
-          </button>
-        </form>
-      </section>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700">Split details</span>
+              <select
+                value={form.option}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    option: event.target.value as FriendExpenseOption,
+                  }))
+                }
+                className="form-input"
+              >
+                <option value="you_paid_equal">You paid, split equally</option>
+                <option value="friend_paid_equal">{summary.friend.name} paid, split equally</option>
+                <option value="you_paid_full">You paid, {summary.friend.name} owes the full amount</option>
+                <option value="friend_paid_full">{summary.friend.name} paid, you owe the full amount</option>
+              </select>
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700">Optional note</span>
+              <textarea
+                rows={3}
+                value={form.note}
+                onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
+                placeholder="Anything helpful to remember later"
+                className="form-input resize-none"
+              />
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700">Optional receipt photo</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => void handleReceiptChange(event, 'create')}
+                className="form-input"
+              />
+            </label>
+
+            {form.receipt_data ? (
+              <img
+                src={form.receipt_data}
+                alt="Receipt preview"
+                className="h-40 w-full rounded-2xl object-cover"
+              />
+            ) : null}
+
+            <button type="submit" disabled={isSaving} className="primary-button w-full px-4 py-3">
+              {isSaving ? 'Saving expense...' : 'Save expense'}
+            </button>
+          </form>
+        </section>
+      ) : null}
 
       <section className="space-y-3">
         <div className="px-1">

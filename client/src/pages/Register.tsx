@@ -63,7 +63,7 @@ export default function Register() {
         {token ? (
           <div className="mb-4 rounded-2xl border border-[#c6e7dd] bg-[#eef9f5] px-4 py-3 text-sm text-[#116e54]">
             You are already signed in. Go to your{' '}
-            <Link className="font-semibold underline" to="/dashboard?tab=groups">
+            <Link className="font-semibold underline" to="/dashboard?tab=friends">
               dashboard
             </Link>
             .
