@@ -20,8 +20,8 @@ export const addFriend = async (
     return;
   }
 
-  const friend = await prisma.user.findUnique({
-    where: { email },
+  const friend = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
     select: { id: true, name: true, email: true },
   });
 
