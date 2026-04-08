@@ -250,7 +250,11 @@ export default function FriendDetail() {
       return;
     }
 
-    mode === 'create' ? setIsParsingReceipt(true) : setIsParsingDetailReceipt(true);
+    if (mode === 'create') {
+      setIsParsingReceipt(true);
+    } else {
+      setIsParsingDetailReceipt(true);
+    }
     setError('');
 
     try {
@@ -281,7 +285,11 @@ export default function FriendDetail() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to parse receipt');
     } finally {
-      mode === 'create' ? setIsParsingReceipt(false) : setIsParsingDetailReceipt(false);
+      if (mode === 'create') {
+        setIsParsingReceipt(false);
+      } else {
+        setIsParsingDetailReceipt(false);
+      }
     }
   }
 

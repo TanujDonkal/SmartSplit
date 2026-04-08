@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, SUPPORTED_CURRENCIES } from '../api';
@@ -74,35 +74,7 @@ export default function Dashboard() {
   const [isParsingQuickReceipt, setIsParsingQuickReceipt] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (!token) {
-      setGroups([]);
-      setFriends([]);
-      setRecentExpenses([]);
-      setDashboardNetBalance(0);
-      setIsLoading(false);
-      return;
-    }
-
-    void loadDashboard();
-  }, [token]);
-
-  useEffect(() => {
-    setProfileForm({
-      name: user?.name ?? '',
-      email: user?.email ?? '',
-      default_currency: user?.default_currency ?? 'CAD',
-    });
-  }, [user?.default_currency, user?.email, user?.name]);
-
-  useEffect(() => {
-    setQuickExpenseForm((current) => ({
-      ...current,
-      currency: (user?.default_currency as SupportedCurrency | undefined) ?? 'CAD',
-    }));
-  }, [user?.default_currency]);
-
-  async function loadDashboard() {
+  const loadDashboard = useCallback(async () => {
     setIsLoading(true);
     setError('');
 
@@ -149,7 +121,35 @@ export default function Dashboard() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!token) {
+      setGroups([]);
+      setFriends([]);
+      setRecentExpenses([]);
+      setDashboardNetBalance(0);
+      setIsLoading(false);
+      return;
+    }
+
+    void loadDashboard();
+  }, [loadDashboard, token]);
+
+  useEffect(() => {
+    setProfileForm({
+      name: user?.name ?? '',
+      email: user?.email ?? '',
+      default_currency: user?.default_currency ?? 'CAD',
+    });
+  }, [user?.default_currency, user?.email, user?.name]);
+
+  useEffect(() => {
+    setQuickExpenseForm((current) => ({
+      ...current,
+      currency: (user?.default_currency as SupportedCurrency | undefined) ?? 'CAD',
+    }));
+  }, [user?.default_currency]);
 
   async function handleCreateGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
