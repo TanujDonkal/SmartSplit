@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "../utils/prisma";
 import { AuthRequest } from "../middleware/auth";
 import { convertAmountToBase, normalizeCurrency } from "../utils/currency";
+import { deleteStoredReceipt, resolveStoredReceipt } from "../utils/receiptStorage";
 
 function toPair(userId: string, friendId: string) {
   return userId < friendId
@@ -213,6 +214,7 @@ export const addFriendExpense = async (
 
     const payerId = paid_by === "self" ? userId : friendId;
     const converted = await convertAmountToBase(amount, currency);
+    const storedReceipt = await resolveStoredReceipt(receipt_data, null, null);
 
     const expense = await prisma.friendExpense.create({
       data: {
@@ -225,7 +227,8 @@ export const addFriendExpense = async (
         description: description.trim(),
         split_type: split_type === "equal" ? "EQUAL" : "FULL_AMOUNT",
         note: note?.trim() || null,
-        receipt_data: receipt_data?.trim() || null,
+        receipt_data: storedReceipt.url,
+        receipt_storage_key: storedReceipt.storageKey,
         incurred_on: incurred_on ? new Date(incurred_on) : new Date(),
       },
       include: friendExpenseInclude,
@@ -287,6 +290,11 @@ export const updateFriendExpense = async (
     const nextCurrency =
       currency === undefined ? existing.currency : normalizeCurrency(currency);
     const converted = await convertAmountToBase(nextAmount, nextCurrency);
+    const storedReceipt = await resolveStoredReceipt(
+      receipt_data,
+      existing.receipt_data,
+      existing.receipt_storage_key,
+    );
 
     const expense = await prisma.friendExpense.update({
       where: { id: expenseId },
@@ -309,10 +317,8 @@ export const updateFriendExpense = async (
               ? "FULL_AMOUNT"
               : existing.split_type,
         note: note === undefined ? existing.note : note?.trim() || null,
-        receipt_data:
-          receipt_data === undefined
-            ? existing.receipt_data
-            : receipt_data?.trim() || null,
+        receipt_data: storedReceipt.url,
+        receipt_storage_key: storedReceipt.storageKey,
         incurred_on: incurred_on ? new Date(incurred_on) : existing.incurred_on,
       },
       include: friendExpenseInclude,
@@ -343,7 +349,7 @@ export const deleteFriendExpense = async (
 
     const existing = await prisma.friendExpense.findFirst({
       where: { id: expenseId, friendship_id: friendship.id },
-      select: { id: true },
+      select: { id: true, receipt_storage_key: true },
     });
 
     if (!existing) {
@@ -352,6 +358,7 @@ export const deleteFriendExpense = async (
     }
 
     await prisma.friendExpense.delete({ where: { id: expenseId } });
+    await deleteStoredReceipt(existing.receipt_storage_key);
     res.json({ message: "Friend expense deleted" });
   } catch (error) {
     console.error("Delete friend expense error:", error);

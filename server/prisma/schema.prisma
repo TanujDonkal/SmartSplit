@@ -65,6 +65,7 @@ model FriendExpense {
   activity_type FriendActivityType    @default(EXPENSE)
   note          String?
   receipt_data  String?
+  receipt_storage_key String?
   incurred_on   DateTime              @default(now())
   created_at    DateTime              @default(now())
   updated_at    DateTime              @updatedAt
@@ -111,6 +112,7 @@ model Expense {
   description  String
   note         String?
   receipt_data String?
+  receipt_storage_key String?
   incurred_on  DateTime        @default(now())
   created_at   DateTime        @default(now())
   updated_at   DateTime        @updatedAt
