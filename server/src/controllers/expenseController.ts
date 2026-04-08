@@ -3,6 +3,7 @@ import { AuthRequest } from "../middleware/auth";
 import prisma from "../utils/prisma";
 import { Prisma } from "@prisma/client";
 import { convertAmountToBase, normalizeCurrency, splitConvertedAmounts } from "../utils/currency";
+import { deleteStoredReceipt, resolveStoredReceipt } from "../utils/receiptStorage";
 
 const expenseInclude = {
   payer: { select: { id: true, name: true, email: true, default_currency: true } },
@@ -148,6 +149,7 @@ export const addExpense = async (
     const total = new Prisma.Decimal(amount);
     const converted = await convertAmountToBase(Number(amount), currency);
     const convertedTotal = new Prisma.Decimal(converted.convertedAmount);
+    const storedReceipt = await resolveStoredReceipt(receipt_data, null, null);
     const splitRows = buildSplitRows(
       total,
       convertedTotal,
@@ -167,7 +169,8 @@ export const addExpense = async (
           converted_amount: convertedTotal,
           description: String(description).trim(),
           note: String(note ?? "").trim() || null,
-          receipt_data: String(receipt_data ?? "").trim() || null,
+          receipt_data: storedReceipt.url,
+          receipt_storage_key: storedReceipt.storageKey,
           incurred_on: incurred_on ? new Date(incurred_on) : new Date(),
         },
       });
@@ -305,6 +308,11 @@ export const updateExpense = async (
         : normalizeCurrency(currency);
     const converted = await convertAmountToBase(Number(nextAmount), nextCurrency);
     const convertedTotal = new Prisma.Decimal(converted.convertedAmount);
+    const storedReceipt = await resolveStoredReceipt(
+      receipt_data,
+      existing.receipt_data,
+      existing.receipt_storage_key,
+    );
     const splitRows = buildSplitRows(
       nextAmount,
       convertedTotal,
@@ -323,10 +331,8 @@ export const updateExpense = async (
           exchange_rate_to_base: new Prisma.Decimal(converted.exchangeRateToBase),
           converted_amount: convertedTotal,
           note: note === undefined ? existing.note : String(note).trim() || null,
-          receipt_data:
-            receipt_data === undefined
-              ? existing.receipt_data
-              : String(receipt_data).trim() || null,
+          receipt_data: storedReceipt.url,
+          receipt_storage_key: storedReceipt.storageKey,
           incurred_on: incurred_on ? new Date(incurred_on) : existing.incurred_on,
         },
       });
@@ -373,7 +379,7 @@ export const deleteExpense = async (
   try {
     const existing = await prisma.expense.findUnique({
       where: { id: expenseId },
-      select: { id: true, group_id: true },
+      select: { id: true, group_id: true, receipt_storage_key: true },
     });
 
     if (!existing) {
@@ -393,6 +399,7 @@ export const deleteExpense = async (
       prisma.expenseComment.deleteMany({ where: { expense_id: expenseId } }),
       prisma.expense.delete({ where: { id: expenseId } }),
     ]);
+    await deleteStoredReceipt(existing.receipt_storage_key);
 
     res.json({ message: "Expense deleted" });
   } catch (error) {
