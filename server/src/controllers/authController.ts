@@ -119,7 +119,11 @@ export const requestPasswordResetOtp = async (
 
     res.json({ message: "OTP sent to your registered email." });
   } catch (error) {
-    console.error("Request password reset OTP error:", error);
+    console.error("Request password reset OTP error:", {
+      message: error instanceof Error ? error.message : "Unknown OTP mail error",
+      name: error instanceof Error ? error.name : undefined,
+      email,
+    });
     res.status(500).json({ error: "Failed to send OTP email" });
   }
 };
