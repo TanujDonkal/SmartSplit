@@ -2,109 +2,57 @@
 
 ## Overview
 
-SmartSplit is a full-stack expense sharing app for small groups. The current implementation supports user accounts, group management, equal-split expenses, balance calculation, and settlement suggestions.
+SmartSplit is a full-stack expense sharing app that supports both friend-based and group-based splitting. The implementation now includes account management, friend management, group management, rich expense details, balances, settlements, receipt workflows, AI-assisted receipt parsing, an in-app AI assistant, and multi-currency expense support.
 
-## 1. Authentication
+## Feature Documentation Index
 
-### Register
-- Create a new account with name, email, and password
-- Backend route: `POST /api/auth/register`
-- Frontend page: `client/src/pages/Register.tsx`
+Each major feature now has a separate implementation guide in `docs/features/`.
 
-### Login
-- Sign in with email and password
-- Stores the JWT token and user profile in local storage
-- Backend route: `POST /api/auth/login`
-- Frontend page: `client/src/pages/Login.tsx`
+- `docs/features/authentication.md`
+- `docs/features/friends.md`
+- `docs/features/groups.md`
+- `docs/features/friend-expenses.md`
+- `docs/features/group-expenses.md`
+- `docs/features/manual-splitting.md`
+- `docs/features/balances-and-settlements.md`
+- `docs/features/profile-and-account.md`
+- `docs/features/password-recovery.md`
+- `docs/features/receipts.md`
+- `docs/features/ai-receipt-parsing.md`
+- `docs/features/ai-chatbot.md`
+- `docs/features/multi-currency.md`
 
-### Protected App Access
-- Dashboard and group pages require a valid token
-- Frontend component: `client/src/components/ProtectedRoute.tsx`
-- Backend protected routes use bearer-token auth middleware
+## Suggested Reading Order
 
-## 2. Dashboard and Groups
+1. `docs/features/authentication.md`
+2. `docs/features/friends.md`
+3. `docs/features/groups.md`
+4. `docs/features/friend-expenses.md`
+5. `docs/features/group-expenses.md`
+6. `docs/features/manual-splitting.md`
+7. `docs/features/balances-and-settlements.md`
+8. `docs/features/profile-and-account.md`
+9. `docs/features/password-recovery.md`
+10. `docs/features/receipts.md`
+11. `docs/features/ai-receipt-parsing.md`
+12. `docs/features/ai-chatbot.md`
+13. `docs/features/multi-currency.md`
 
-### Dashboard
-- Loads all groups for the logged-in user
-- Shows group cards with member count and expense count
-- Frontend page: `client/src/pages/Dashboard.tsx`
-- Backend route: `GET /api/groups`
+## Implementation Notes
 
-### Create Group
-- Create a new expense group from the dashboard
-- Creator is automatically added as the first member
-- Backend route: `POST /api/groups`
+- Frontend routing is defined in `client/src/App.tsx`
+- Shared frontend API calls live in `client/src/api.ts`
+- Backend route registration starts in `server/src/app.ts`
+- Database structure is defined in `server/prisma/schema.prisma`
+- Settlement algorithm details are still documented in `docs/settlement-algorithm.md`
 
-### Group Detail
-- Displays group summary, members, expenses, balances, and settlement suggestions
-- Frontend page: `client/src/pages/GroupDetail.tsx`
+## Current Scope
 
-### Add Member
-- Add a user to a group by email
-- The invited person must already have a registered account
-- Backend route: `POST /api/groups/:groupId/members`
+The feature guides are intended to document the implemented system as it exists in code. They focus on:
 
-## 3. Expense Management
-
-### Add Expense
-- Add a group expense with description and amount
-- The logged-in user becomes the payer
-- Current implementation uses equal split across all group members
-- Backend route: `POST /api/expenses`
-
-### Expense Feed
-- Loads all expenses for a group in reverse chronological order
-- Shows payer, amount, date, and per-member split details
-- Backend route: `GET /api/expenses/:groupId`
-
-### Split Preview
-- The UI shows a live estimate of how much each member will owe before the expense is submitted
-
-## 4. Balances and Settlements
-
-### Balances
-- Calculates each member's net position in the group
-- Positive balance means the member should receive money
-- Negative balance means the member owes money
-- Backend route: `GET /api/groups/:groupId/balances`
-
-### Settlement Suggestions
-- Generates a minimal set of debtor-to-creditor payments
-- Based on the greedy matching algorithm documented in `docs/settlement-algorithm.md`
-- Backend route: `GET /api/groups/:groupId/settlements`
-
-## 5. Frontend Infrastructure
-
-### Client Stack
-- React 19
-- React Router
-- Vite
-- Tailwind CSS v4
-- PWA support through `vite-plugin-pwa`
-
-### API Integration
-- Frontend requests are centralized in `client/src/api.ts`
-- Vite proxies `/api` requests to `http://localhost:3000`
-
-## 6. Current Product Limitations
-
-The app is functional for the main coursework flow, but it does not yet include:
-
-- Expense editing or deletion
-- Custom split ratios
-- Settlement payment recording
-- Group deletion or renaming
-- Invite links or email invitations
-- Password reset
-- Real-time updates between devices
-- Deployment configuration for public multi-user access
-
-## 7. Best Current Use Case
-
-Right now the app is best suited for:
-
-- Local development and demo use
-- Coursework demonstration
-- Small-group testing on a shared development setup
-
-For real use with a friend on separate devices, both users need access to the same running backend and the same PostgreSQL database, which usually means deployment or local network hosting.
+- what the feature does
+- the user workflow
+- the frontend and backend files involved
+- the database models involved
+- the main API routes
+- important implementation behavior
