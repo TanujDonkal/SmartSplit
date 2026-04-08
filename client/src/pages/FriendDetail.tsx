@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api } from '../api';
-import type { FriendExpense, FriendSummary } from '../api';
+import { api, SUPPORTED_CURRENCIES } from '../api';
+import type { FriendExpense, FriendSummary, SupportedCurrency } from '../api';
 import { useAuth } from '../context/useAuth';
 
 type FriendExpenseOption =
@@ -28,6 +28,14 @@ async function readFileAsDataUrl(file: File) {
   });
 }
 
+function formatMoney(amount: number, currency: string) {
+  return new Intl.NumberFormat('en-CA', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
 function getOptionFromExpense(expense: FriendExpense, userId: string | undefined): FriendExpenseOption {
   const paidByMe = expense.payer.id === userId;
 
@@ -49,6 +57,7 @@ export default function FriendDetail() {
   const [form, setForm] = useState({
     description: '',
     amount: '',
+    currency: 'CAD' as SupportedCurrency,
     option: 'you_paid_equal' as FriendExpenseOption,
     note: '',
     incurred_on: new Date().toISOString().slice(0, 10),
@@ -57,6 +66,7 @@ export default function FriendDetail() {
   const [detailForm, setDetailForm] = useState({
     description: '',
     amount: '',
+    currency: 'CAD' as SupportedCurrency,
     option: 'you_paid_equal' as FriendExpenseOption,
     note: '',
     incurred_on: new Date().toISOString().slice(0, 10),
@@ -88,6 +98,7 @@ export default function FriendDetail() {
     setDetailForm({
       description: selectedExpense.description,
       amount: String(Number(selectedExpense.amount).toFixed(2)),
+      currency: selectedExpense.currency,
       option: getOptionFromExpense(selectedExpense, user?.id),
       note: selectedExpense.note ?? '',
       incurred_on: toDateInputValue(selectedExpense.incurred_on),
@@ -95,6 +106,13 @@ export default function FriendDetail() {
     });
     setCommentBody('');
   }, [selectedExpense, user?.id]);
+
+  useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      currency: (user?.default_currency as SupportedCurrency | undefined) ?? 'CAD',
+    }));
+  }, [user?.default_currency]);
 
   const currentBalance = summary?.net_balance ?? 0;
   const balanceTone =
@@ -106,10 +124,10 @@ export default function FriendDetail() {
 
   const balanceMessage =
     currentBalance > 0.005
-      ? `${summary?.friend.name} owes you $${Math.abs(currentBalance).toFixed(2)} overall`
+      ? `${summary?.friend.name} owes you ${formatMoney(Math.abs(currentBalance), 'CAD')} overall`
       : currentBalance < -0.005
-        ? `You owe ${summary?.friend.name} $${Math.abs(currentBalance).toFixed(2)} overall`
-        : `You and ${summary?.friend.name ?? 'your friend'} are settled up`;
+        ? `You owe ${summary?.friend.name} ${formatMoney(Math.abs(currentBalance), 'CAD')} overall`
+        : `You and ${summary?.friend.name ?? 'your friend'} are settled up in CAD`;
 
   const sortedExpenses = useMemo(
     () =>
@@ -173,8 +191,8 @@ export default function FriendDetail() {
     if (expense.activity_type === 'SETTLEMENT') {
       const paidByMe = expense.payer.id === user?.id;
       return paidByMe
-        ? `You settled up with ${summary.friend.name} for $${Number(expense.amount).toFixed(2)}`
-        : `${summary.friend.name} settled up with you for $${Number(expense.amount).toFixed(2)}`;
+        ? `You settled up with ${summary.friend.name} for ${formatMoney(Number(expense.amount), expense.currency)}`
+        : `${summary.friend.name} settled up with you for ${formatMoney(Number(expense.amount), expense.currency)}`;
     }
 
     const amount = Number(expense.amount);
@@ -183,13 +201,13 @@ export default function FriendDetail() {
 
     if (expense.split_type === 'FULL_AMOUNT') {
       return paidByMe
-        ? `${summary.friend.name} owes you $${amount.toFixed(2)}`
-        : `You owe ${summary.friend.name} $${amount.toFixed(2)}`;
+        ? `${summary.friend.name} owes you ${formatMoney(amount, expense.currency)}`
+        : `You owe ${summary.friend.name} ${formatMoney(amount, expense.currency)}`;
     }
 
     return paidByMe
-      ? `${summary.friend.name} owes you $${share.toFixed(2)}`
-      : `You owe ${summary.friend.name} $${share.toFixed(2)}`;
+      ? `${summary.friend.name} owes you ${formatMoney(share, expense.currency)}`
+      : `You owe ${summary.friend.name} ${formatMoney(share, expense.currency)}`;
   }
 
   async function handleReceiptChange(
@@ -239,6 +257,7 @@ export default function FriendDetail() {
       await api.addFriendExpense(friendId, {
         description: form.description.trim(),
         amount,
+        currency: form.currency,
         note: form.note.trim(),
         receipt_data: form.receipt_data || undefined,
         incurred_on: buildIsoDate(form.incurred_on),
@@ -248,6 +267,7 @@ export default function FriendDetail() {
       setForm({
         description: '',
         amount: '',
+        currency: (user?.default_currency as SupportedCurrency | undefined) ?? 'CAD',
         option: 'you_paid_equal',
         note: '',
         incurred_on: new Date().toISOString().slice(0, 10),
@@ -282,6 +302,7 @@ export default function FriendDetail() {
       const updated = await api.updateFriendExpense(friendId, selectedExpense.id, {
         description: detailForm.description.trim(),
         amount,
+        currency: detailForm.currency,
         note: detailForm.note.trim(),
         receipt_data: detailForm.receipt_data || null,
         incurred_on: buildIsoDate(detailForm.incurred_on),
@@ -441,11 +462,11 @@ export default function FriendDetail() {
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-2xl bg-[#f7f8f4] px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">You paid</p>
-              <p className="mt-2 text-lg font-semibold text-slate-900">${summary.you_paid_total.toFixed(2)}</p>
+              <p className="mt-2 text-lg font-semibold text-slate-900">{formatMoney(summary.you_paid_total, 'CAD')}</p>
             </div>
             <div className="rounded-2xl bg-[#f7f8f4] px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Friend paid</p>
-              <p className="mt-2 text-lg font-semibold text-slate-900">${summary.friend_paid_total.toFixed(2)}</p>
+              <p className="mt-2 text-lg font-semibold text-slate-900">{formatMoney(summary.friend_paid_total, 'CAD')}</p>
             </div>
             <div className="rounded-2xl bg-[#f7f8f4] px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Activities</p>
@@ -516,6 +537,26 @@ export default function FriendDetail() {
                 placeholder="20"
                 className="form-input"
               />
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700">Currency</span>
+              <select
+                value={form.currency}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    currency: event.target.value as SupportedCurrency,
+                  }))
+                }
+                className="form-input"
+              >
+                {SUPPORTED_CURRENCIES.map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currency}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className="block space-y-2">
@@ -609,7 +650,16 @@ export default function FriendDetail() {
                     {new Date(expense.incurred_on).toLocaleDateString()}
                   </p>
                 </div>
-                <p className="text-lg font-semibold text-[#36b5ac]">${Number(expense.amount).toFixed(2)}</p>
+                <div className="text-right">
+                  <p className="text-lg font-semibold text-[#36b5ac]">
+                    {formatMoney(Number(expense.amount), expense.currency)}
+                  </p>
+                  {expense.currency !== 'CAD' ? (
+                    <p className="mt-1 text-xs text-slate-400">
+                      {formatMoney(Number(expense.converted_amount), 'CAD')}
+                    </p>
+                  ) : null}
+                </div>
               </div>
               <p className="mt-2 text-sm font-medium text-[#2b938c]">{getExpenseSummary(expense)}</p>
               {expense.note ? <p className="mt-2 text-sm text-slate-500 line-clamp-2">{expense.note}</p> : null}
@@ -644,7 +694,10 @@ export default function FriendDetail() {
               <p className="mt-3 text-lg font-semibold text-slate-900">{selectedExpense.description}</p>
               <p className="mt-1 text-sm text-slate-500">{getExpenseSummary(selectedExpense)}</p>
               <div className="mt-3 grid gap-2 text-sm text-slate-600">
-                <p>Amount: ${Number(selectedExpense.amount).toFixed(2)}</p>
+                <p>Amount: {formatMoney(Number(selectedExpense.amount), selectedExpense.currency)}</p>
+                {selectedExpense.currency !== 'CAD' ? (
+                  <p>Converted amount: {formatMoney(Number(selectedExpense.converted_amount), 'CAD')}</p>
+                ) : null}
                 <p>Occurred on: {new Date(selectedExpense.incurred_on).toLocaleString()}</p>
                 <p>Created: {new Date(selectedExpense.created_at).toLocaleString()}</p>
                 {selectedExpense.updated_at ? (
@@ -665,6 +718,26 @@ export default function FriendDetail() {
                     }
                     className="form-input"
                   />
+                </label>
+
+                <label className="block space-y-2">
+                  <span className="text-sm font-medium text-slate-700">Currency</span>
+                  <select
+                    value={detailForm.currency}
+                    onChange={(event) =>
+                      setDetailForm((current) => ({
+                        ...current,
+                        currency: event.target.value as SupportedCurrency,
+                      }))
+                    }
+                    className="form-input"
+                  >
+                    {SUPPORTED_CURRENCIES.map((currency) => (
+                      <option key={currency} value={currency}>
+                        {currency}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 <label className="block space-y-2">

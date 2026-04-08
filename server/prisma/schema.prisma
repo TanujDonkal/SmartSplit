@@ -57,6 +57,9 @@ model FriendExpense {
   friendship_id String
   payer_id      String
   amount        Decimal               @db.Decimal(10, 2)
+  currency      String                @default("CAD")
+  exchange_rate_to_base Decimal       @default(1) @db.Decimal(12, 6)
+  converted_amount Decimal            @db.Decimal(10, 2)
   description   String
   split_type    FriendExpenseSplitType
   activity_type FriendActivityType    @default(EXPENSE)
@@ -102,6 +105,9 @@ model Expense {
   group_id     String
   payer_id     String
   amount       Decimal         @db.Decimal(10, 2)
+  currency     String          @default("CAD")
+  exchange_rate_to_base Decimal @default(1) @db.Decimal(12, 6)
+  converted_amount Decimal     @db.Decimal(10, 2)
   description  String
   note         String?
   receipt_data String?
@@ -122,6 +128,7 @@ model ExpenseSplit {
   expense_id  String
   user_id     String
   amount_owed Decimal @db.Decimal(10, 2)
+  converted_amount_owed Decimal @db.Decimal(10, 2)
 
   expense     Expense @relation(fields: [expense_id], references: [id])
   user        User    @relation(fields: [user_id], references: [id])

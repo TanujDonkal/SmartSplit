@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api } from '../api';
-import type { Balance, Expense, Friend, Group, Settlement } from '../api';
+import { api, SUPPORTED_CURRENCIES } from '../api';
+import type { Balance, Expense, Friend, Group, Settlement, SupportedCurrency } from '../api';
 import { useAuth } from '../context/useAuth';
 
 type ManualSplitEntry = {
@@ -36,6 +36,14 @@ function createManualSplitDraft(group: Group, amount = '') {
   }));
 }
 
+function formatMoney(amount: number, currency: string) {
+  return new Intl.NumberFormat('en-CA', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
 function inferSplitType(expense: Expense, memberCount: number) {
   const splits = expense.splits ?? [];
 
@@ -66,6 +74,7 @@ export default function GroupDetail() {
   const [expenseForm, setExpenseForm] = useState({
     description: '',
     amount: '',
+    currency: 'CAD' as SupportedCurrency,
     split_type: 'equal' as 'equal' | 'manual',
     manual_splits: [] as ManualSplitEntry[],
     note: '',
@@ -75,6 +84,7 @@ export default function GroupDetail() {
   const [detailForm, setDetailForm] = useState({
     description: '',
     amount: '',
+    currency: 'CAD' as SupportedCurrency,
     split_type: 'equal' as 'equal' | 'manual',
     manual_splits: [] as ManualSplitEntry[],
     note: '',
@@ -133,6 +143,7 @@ export default function GroupDetail() {
     setDetailForm({
       description: selectedExpense.description,
       amount: String(Number(selectedExpense.amount).toFixed(2)),
+      currency: selectedExpense.currency,
       split_type: splitType,
       manual_splits:
         group?.members.map((member) => {
@@ -172,6 +183,13 @@ export default function GroupDetail() {
       };
     });
   }, [group]);
+
+  useEffect(() => {
+    setExpenseForm((current) => ({
+      ...current,
+      currency: (user?.default_currency as SupportedCurrency | undefined) ?? 'CAD',
+    }));
+  }, [user?.default_currency]);
 
   const sortedExpenses = useMemo(
     () =>
@@ -362,6 +380,7 @@ export default function GroupDetail() {
         group_id: groupId,
         description: expenseForm.description.trim(),
         amount,
+        currency: expenseForm.currency,
         note: expenseForm.note.trim(),
         receipt_data: expenseForm.receipt_data || undefined,
         incurred_on: buildIsoDate(expenseForm.incurred_on),
@@ -371,6 +390,7 @@ export default function GroupDetail() {
       setExpenseForm({
         description: '',
         amount: '',
+        currency: (user?.default_currency as SupportedCurrency | undefined) ?? 'CAD',
         split_type: 'equal',
         manual_splits: group ? createManualSplitDraft(group) : [],
         note: '',
@@ -430,6 +450,7 @@ export default function GroupDetail() {
       const updated = await api.updateExpense(selectedExpense.id, {
         description: detailForm.description.trim(),
         amount,
+        currency: detailForm.currency,
         note: detailForm.note.trim(),
         receipt_data: detailForm.receipt_data || null,
         incurred_on: buildIsoDate(detailForm.incurred_on),
@@ -552,7 +573,7 @@ export default function GroupDetail() {
               }`}
             >
               {myBalance > 0 ? '+' : ''}
-              ${Math.abs(myBalance).toFixed(2)}
+              {formatMoney(Math.abs(myBalance), 'CAD')}
             </p>
           </div>
           <div className="soft-card p-4">
@@ -628,6 +649,26 @@ export default function GroupDetail() {
             </label>
 
             <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700">Currency</span>
+              <select
+                value={expenseForm.currency}
+                onChange={(event) =>
+                  setExpenseForm((current) => ({
+                    ...current,
+                    currency: event.target.value as SupportedCurrency,
+                  }))
+                }
+                className="form-input"
+              >
+                {SUPPORTED_CURRENCIES.map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currency}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block space-y-2">
               <span className="text-sm font-medium text-slate-700">Expense date</span>
               <input
                 type="date"
@@ -683,7 +724,7 @@ export default function GroupDetail() {
                   ))}
                 </div>
                 <div className="rounded-2xl bg-white px-4 py-3 text-sm text-slate-600">
-                  Manual total: ${manualSplitTotal.toFixed(2)} / ${Number(expenseForm.amount || 0).toFixed(2)}
+                  Manual total: {formatMoney(manualSplitTotal, expenseForm.currency)} / {formatMoney(Number(expenseForm.amount || 0), expenseForm.currency)}
                 </div>
               </div>
             ) : null}
@@ -730,8 +771,8 @@ export default function GroupDetail() {
 
             <div className="rounded-2xl bg-[#eef8f7] px-4 py-3 text-sm text-[#2b938c]">
               {expenseForm.split_type === 'equal'
-                ? `Split preview: ${group.members.length} member(s) would each owe $${splitPreview.toFixed(2)}.`
-                : `Manual preview: total assigned is $${manualSplitTotal.toFixed(2)}.`}
+                ? `Split preview: ${group.members.length} member(s) would each owe ${formatMoney(splitPreview, expenseForm.currency)}.`
+                : `Manual preview: total assigned is ${formatMoney(manualSplitTotal, expenseForm.currency)}.`}
             </div>
             <button type="submit" disabled={isAddingExpense} className="primary-button w-full px-4 py-4">
               {isAddingExpense ? 'Saving expense...' : 'Save expense'}
@@ -840,7 +881,7 @@ export default function GroupDetail() {
                     }`}
                   >
                     {entry.balance > 0 ? '+' : ''}
-                    ${Math.abs(entry.balance).toFixed(2)}
+                    {formatMoney(Math.abs(entry.balance), 'CAD')}
                   </p>
                   <p className="text-xs uppercase tracking-[0.16em] text-slate-400">
                     {Math.abs(entry.balance) < 0.01 ? 'Settled' : entry.balance > 0 ? 'Gets back' : 'Owes'}
@@ -868,7 +909,7 @@ export default function GroupDetail() {
                   <span className="font-semibold text-slate-900">{settlement.from.name}</span> pays{' '}
                   <span className="font-semibold text-slate-900">{settlement.to.name}</span>
                 </p>
-                <p className="mt-2 text-2xl font-semibold text-[#36b5ac]">${settlement.amount.toFixed(2)}</p>
+                <p className="mt-2 text-2xl font-semibold text-[#36b5ac]">{formatMoney(settlement.amount, 'CAD')}</p>
               </div>
             ))}
           </div>
@@ -899,7 +940,16 @@ export default function GroupDetail() {
                       Paid by {expense.payer.name} on {new Date(expense.incurred_on).toLocaleDateString()}
                     </p>
                   </div>
-                  <p className="text-lg font-semibold text-[#36b5ac]">${Number(expense.amount).toFixed(2)}</p>
+                  <div className="text-right">
+                    <p className="text-lg font-semibold text-[#36b5ac]">
+                      {formatMoney(Number(expense.amount), expense.currency)}
+                    </p>
+                    {expense.currency !== 'CAD' ? (
+                      <p className="mt-1 text-xs text-slate-400">
+                        {formatMoney(Number(expense.converted_amount), 'CAD')}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
 
                 {expense.note ? <p className="mt-2 text-sm text-slate-500 line-clamp-2">{expense.note}</p> : null}
@@ -914,7 +964,7 @@ export default function GroupDetail() {
                         <div key={split.id} className="flex items-center justify-between text-sm">
                           <span className="text-slate-600">{split.user.name}</span>
                           <span className="font-semibold text-slate-900">
-                            ${Number(split.amount_owed).toFixed(2)}
+                            {formatMoney(Number(split.amount_owed), expense.currency)}
                           </span>
                         </div>
                       ))}
@@ -950,7 +1000,10 @@ export default function GroupDetail() {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Summary</p>
               <p className="mt-3 text-lg font-semibold text-slate-900">{selectedExpense.description}</p>
               <div className="mt-3 grid gap-2 text-sm text-slate-600">
-                <p>Amount: ${Number(selectedExpense.amount).toFixed(2)}</p>
+                <p>Amount: {formatMoney(Number(selectedExpense.amount), selectedExpense.currency)}</p>
+                {selectedExpense.currency !== 'CAD' ? (
+                  <p>Converted amount: {formatMoney(Number(selectedExpense.converted_amount), 'CAD')}</p>
+                ) : null}
                 <p>Paid by: {selectedExpense.payer.name}</p>
                 <p>Occurred on: {new Date(selectedExpense.incurred_on).toLocaleString()}</p>
                 <p>Created: {new Date(selectedExpense.created_at).toLocaleString()}</p>
@@ -980,6 +1033,26 @@ export default function GroupDetail() {
                   onChange={(event) => setDetailForm((current) => ({ ...current, amount: event.target.value }))}
                   className="form-input"
                 />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Currency</span>
+                <select
+                  value={detailForm.currency}
+                  onChange={(event) =>
+                    setDetailForm((current) => ({
+                      ...current,
+                      currency: event.target.value as SupportedCurrency,
+                    }))
+                  }
+                  className="form-input"
+                >
+                  {SUPPORTED_CURRENCIES.map((currency) => (
+                    <option key={currency} value={currency}>
+                      {currency}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label className="block space-y-2">
@@ -1070,7 +1143,9 @@ export default function GroupDetail() {
                   {(selectedExpense.splits ?? []).map((split) => (
                     <div key={split.id} className="flex items-center justify-between text-sm">
                       <span className="text-slate-600">{split.user.name}</span>
-                      <span className="font-semibold text-slate-900">${Number(split.amount_owed).toFixed(2)}</span>
+                      <span className="font-semibold text-slate-900">
+                        {formatMoney(Number(split.amount_owed), selectedExpense.currency)}
+                      </span>
                     </div>
                   ))}
                 </div>

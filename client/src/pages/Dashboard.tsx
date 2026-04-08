@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { api } from '../api';
-import type { Expense, Friend, Group } from '../api';
+import { api, SUPPORTED_CURRENCIES } from '../api';
+import type { Expense, Friend, Group, SupportedCurrency } from '../api';
 import { useAuth } from '../context/useAuth';
 
 type DashboardExpense = Expense & { groupName: string };
@@ -11,6 +11,14 @@ type ChatMessage = {
   role: 'assistant' | 'user';
   text: string;
 };
+
+function formatMoney(amount: number, currency: string) {
+  return new Intl.NumberFormat('en-CA', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
 
 export default function Dashboard() {
   const { token, user, updateUser, logout } = useAuth();
@@ -43,6 +51,7 @@ export default function Dashboard() {
   const [quickExpenseForm, setQuickExpenseForm] = useState({
     description: '',
     amount: '',
+    currency: 'CAD' as SupportedCurrency,
     note: '',
     incurred_on: new Date().toISOString().slice(0, 10),
     receipt_data: '',
@@ -82,6 +91,13 @@ export default function Dashboard() {
       default_currency: user?.default_currency ?? 'CAD',
     });
   }, [user?.default_currency, user?.email, user?.name]);
+
+  useEffect(() => {
+    setQuickExpenseForm((current) => ({
+      ...current,
+      currency: (user?.default_currency as SupportedCurrency | undefined) ?? 'CAD',
+    }));
+  }, [user?.default_currency]);
 
   async function loadDashboard() {
     setIsLoading(true);
@@ -315,6 +331,7 @@ export default function Dashboard() {
     setQuickExpenseForm({
       description: '',
       amount: '',
+      currency: (user?.default_currency as SupportedCurrency | undefined) ?? 'CAD',
       note: '',
       incurred_on: new Date().toISOString().slice(0, 10),
       receipt_data: '',
@@ -372,6 +389,7 @@ export default function Dashboard() {
         await api.addFriendExpense(selectedFriendId, {
           description: quickExpenseForm.description.trim(),
           amount,
+          currency: quickExpenseForm.currency,
           note: quickExpenseForm.note.trim(),
           receipt_data: quickExpenseForm.receipt_data || undefined,
           incurred_on: new Date(`${quickExpenseForm.incurred_on}T12:00:00`).toISOString(),
@@ -392,6 +410,7 @@ export default function Dashboard() {
         group_id: selectedGroupId,
         description: quickExpenseForm.description.trim(),
         amount,
+        currency: quickExpenseForm.currency,
         note: quickExpenseForm.note.trim(),
         receipt_data: quickExpenseForm.receipt_data || undefined,
         incurred_on: new Date(`${quickExpenseForm.incurred_on}T12:00:00`).toISOString(),
@@ -414,12 +433,12 @@ export default function Dashboard() {
         ? 'text-[#ff9630]'
         : 'text-slate-700';
 
-  const dashboardMessage =
+  const dashboardOwedMessage =
     dashboardNetBalance > 0.005
-      ? `Overall, you are owed $${Math.abs(dashboardNetBalance).toFixed(2)}`
+      ? `Overall, you are owed ${formatMoney(Math.abs(dashboardNetBalance), 'CAD')}`
       : dashboardNetBalance < -0.005
-        ? `Overall, you owe $${Math.abs(dashboardNetBalance).toFixed(2)}`
-        : 'Overall, you are settled up';
+        ? `Overall, you owe ${formatMoney(Math.abs(dashboardNetBalance), 'CAD')}`
+        : `Overall, you are settled up in CAD`;
 
   return (
     <div className="space-y-5 pb-6">
@@ -436,7 +455,7 @@ export default function Dashboard() {
               {token ? `Hi, ${user?.name ?? 'there'}` : 'Welcome'}
             </p>
             <h1 className={`mt-2 text-[1.9rem] font-semibold leading-tight ${dashboardTone}`}>
-              {dashboardMessage}
+              {dashboardOwedMessage}
             </h1>
           </div>
           <button
@@ -612,8 +631,13 @@ export default function Dashboard() {
                         {isMe ? 'You added' : `${expense.payer.name} added`} "{expense.description}"
                       </p>
                       <p className="mt-1 text-sm text-[#36b5ac]">
-                        ${Number(expense.amount).toFixed(2)} in {expense.groupName}
+                        {formatMoney(Number(expense.amount), expense.currency)} in {expense.groupName}
                       </p>
+                      {expense.currency !== 'CAD' ? (
+                        <p className="mt-1 text-xs text-slate-400">
+                          Converted: {formatMoney(Number(expense.converted_amount), 'CAD')}
+                        </p>
+                      ) : null}
                       <p className="mt-1 text-xs text-slate-400">
                         {new Date(expense.created_at).toLocaleString()}
                       </p>
@@ -888,6 +912,29 @@ export default function Dashboard() {
                   placeholder="20"
                   className="form-input"
                 />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Currency</span>
+                <select
+                  value={quickExpenseForm.currency}
+                  onChange={(event) =>
+                    setQuickExpenseForm((current) => ({
+                      ...current,
+                      currency: event.target.value as SupportedCurrency,
+                    }))
+                  }
+                  className="form-input"
+                >
+                  {SUPPORTED_CURRENCIES.map((currency) => (
+                    <option key={currency} value={currency}>
+                      {currency}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-400">
+                  Balances and settlements are normalized to CAD behind the scenes.
+                </p>
               </label>
 
               <label className="block space-y-2">
