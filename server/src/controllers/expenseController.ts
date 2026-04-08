@@ -2,6 +2,7 @@ import { Response } from "express";
 import { AuthRequest } from "../middleware/auth";
 import prisma from "../utils/prisma";
 import { Prisma } from "@prisma/client";
+import { convertAmountToBase, normalizeCurrency, splitConvertedAmounts } from "../utils/currency";
 
 const expenseInclude = {
   payer: { select: { id: true, name: true, email: true, default_currency: true } },
@@ -85,15 +86,26 @@ function buildManualSplitRows(
 
 function buildSplitRows(
   total: Prisma.Decimal,
+  convertedTotal: Prisma.Decimal,
   userIds: string[],
   splitType: "equal" | "manual",
   rawSplits: Array<{ user_id: string; amount_owed: number | string }> = [],
 ) {
-  if (splitType === "manual") {
-    return buildManualSplitRows(total, userIds, rawSplits);
-  }
+  const originalRows =
+    splitType === "manual"
+      ? buildManualSplitRows(total, userIds, rawSplits)
+      : buildEqualSplitRows(total, userIds);
 
-  return buildEqualSplitRows(total, userIds);
+  const weights =
+    splitType === "manual"
+      ? originalRows.map((split) => Number(split.amount_owed))
+      : originalRows.map(() => 1);
+  const convertedShares = splitConvertedAmounts(Number(convertedTotal), weights);
+
+  return originalRows.map((split, index) => ({
+    ...split,
+    converted_amount_owed: new Prisma.Decimal(convertedShares[index]).toDecimalPlaces(2),
+  }));
 }
 
 // POST /api/expenses
@@ -108,6 +120,7 @@ export const addExpense = async (
     note,
     receipt_data,
     incurred_on,
+    currency,
     split_type,
     splits,
   } = req.body;
@@ -133,8 +146,11 @@ export const addExpense = async (
 
     const members = await prisma.groupMember.findMany({ where: { group_id } });
     const total = new Prisma.Decimal(amount);
+    const converted = await convertAmountToBase(Number(amount), currency);
+    const convertedTotal = new Prisma.Decimal(converted.convertedAmount);
     const splitRows = buildSplitRows(
       total,
+      convertedTotal,
       members.map((member) => member.user_id),
       split_type === "manual" ? "manual" : "equal",
       Array.isArray(splits) ? splits : [],
@@ -146,6 +162,9 @@ export const addExpense = async (
           group_id,
           payer_id: payerId,
           amount: total,
+          currency: converted.currency,
+          exchange_rate_to_base: new Prisma.Decimal(converted.exchangeRateToBase),
+          converted_amount: convertedTotal,
           description: String(description).trim(),
           note: String(note ?? "").trim() || null,
           receipt_data: String(receipt_data ?? "").trim() || null,
@@ -158,6 +177,7 @@ export const addExpense = async (
           expense_id: newExpense.id,
           user_id: split.user_id,
           amount_owed: split.amount_owed,
+          converted_amount_owed: split.converted_amount_owed,
         })),
       });
 
@@ -170,7 +190,12 @@ export const addExpense = async (
     res.status(201).json(expense);
   } catch (error) {
     console.error("Add expense error:", error);
-    if (error instanceof Error && error.message.toLowerCase().includes("split")) {
+    if (
+      error instanceof Error &&
+      (error.message.toLowerCase().includes("split") ||
+        error.message.toLowerCase().includes("currency") ||
+        error.message.toLowerCase().includes("amount"))
+    ) {
       res.status(400).json({ error: error.message });
       return;
     }
@@ -245,7 +270,7 @@ export const updateExpense = async (
 ): Promise<void> => {
   const userId = req.userId!;
   const expenseId = req.params.expenseId as string;
-  const { description, amount, note, receipt_data, incurred_on, split_type, splits } = req.body;
+  const { description, amount, note, receipt_data, incurred_on, currency, split_type, splits } = req.body;
 
   try {
     const existing = await prisma.expense.findUnique({
@@ -274,8 +299,15 @@ export const updateExpense = async (
       Number.isFinite(numericAmount) && numericAmount > 0
         ? new Prisma.Decimal(numericAmount)
         : existing.amount;
+    const nextCurrency =
+      currency === undefined
+        ? existing.currency
+        : normalizeCurrency(currency);
+    const converted = await convertAmountToBase(Number(nextAmount), nextCurrency);
+    const convertedTotal = new Prisma.Decimal(converted.convertedAmount);
     const splitRows = buildSplitRows(
       nextAmount,
+      convertedTotal,
       members.map((member) => member.user_id),
       split_type === "manual" ? "manual" : "equal",
       Array.isArray(splits) ? splits : [],
@@ -287,6 +319,9 @@ export const updateExpense = async (
         data: {
           description: String(description ?? existing.description).trim(),
           amount: nextAmount,
+          currency: converted.currency,
+          exchange_rate_to_base: new Prisma.Decimal(converted.exchangeRateToBase),
+          converted_amount: convertedTotal,
           note: note === undefined ? existing.note : String(note).trim() || null,
           receipt_data:
             receipt_data === undefined
@@ -302,6 +337,7 @@ export const updateExpense = async (
           expense_id: expenseId,
           user_id: split.user_id,
           amount_owed: split.amount_owed,
+          converted_amount_owed: split.converted_amount_owed,
         })),
       });
 
@@ -314,7 +350,12 @@ export const updateExpense = async (
     res.json(expense);
   } catch (error) {
     console.error("Update expense error:", error);
-    if (error instanceof Error && error.message.toLowerCase().includes("split")) {
+    if (
+      error instanceof Error &&
+      (error.message.toLowerCase().includes("split") ||
+        error.message.toLowerCase().includes("currency") ||
+        error.message.toLowerCase().includes("amount"))
+    ) {
       res.status(400).json({ error: error.message });
       return;
     }

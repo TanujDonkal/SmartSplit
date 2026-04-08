@@ -42,12 +42,12 @@ export const getBalances = async (
     for (const expense of expenses) {
       // Add what the payer paid
       const current = balanceMap.get(expense.payer_id) ?? 0;
-      balanceMap.set(expense.payer_id, current + Number(expense.amount));
+      balanceMap.set(expense.payer_id, current + Number(expense.converted_amount));
 
       // Subtract what each person owes
       for (const split of expense.splits) {
         const owed = balanceMap.get(split.user_id) ?? 0;
-        balanceMap.set(split.user_id, owed - Number(split.amount_owed));
+        balanceMap.set(split.user_id, owed - Number(split.converted_amount_owed));
       }
     }
 
@@ -101,11 +101,11 @@ export const getSettlements = async (
 
     for (const expense of expenses) {
       const current = balanceMap.get(expense.payer_id) ?? 0;
-      balanceMap.set(expense.payer_id, current + Number(expense.amount));
+      balanceMap.set(expense.payer_id, current + Number(expense.converted_amount));
 
       for (const split of expense.splits) {
         const owed = balanceMap.get(split.user_id) ?? 0;
-        balanceMap.set(split.user_id, owed - Number(split.amount_owed));
+        balanceMap.set(split.user_id, owed - Number(split.converted_amount_owed));
       }
     }
 

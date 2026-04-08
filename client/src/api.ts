@@ -1,4 +1,6 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
+export const SUPPORTED_CURRENCIES = ['CAD', 'USD', 'EUR', 'GBP', 'INR'] as const;
+export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
 
 export interface AuthUser {
   id: string;
@@ -39,6 +41,9 @@ export interface Expense {
   group_id?: string;
   description: string;
   amount: string;
+  currency: SupportedCurrency;
+  exchange_rate_to_base: string;
+  converted_amount: string;
   note?: string | null;
   receipt_data?: string | null;
   incurred_on: string;
@@ -50,6 +55,7 @@ export interface Expense {
     id: string;
     user_id: string;
     amount_owed: string;
+    converted_amount_owed: string;
     user: AuthUser;
   }>;
 }
@@ -75,6 +81,9 @@ export interface FriendExpense {
   id: string;
   description: string;
   amount: string;
+  currency: SupportedCurrency;
+  exchange_rate_to_base: string;
+  converted_amount: string;
   split_type: 'EQUAL' | 'FULL_AMOUNT';
   activity_type: 'EXPENSE' | 'SETTLEMENT';
   note?: string | null;
@@ -183,6 +192,7 @@ export const api = {
     data: {
       description: string;
       amount: number;
+      currency?: SupportedCurrency;
       paid_by: 'self' | 'friend';
       split_type: 'equal' | 'full_amount';
       note?: string;
@@ -202,6 +212,7 @@ export const api = {
     data: {
       description?: string;
       amount?: number;
+      currency?: SupportedCurrency;
       paid_by?: 'self' | 'friend';
       split_type?: 'equal' | 'full_amount';
       note?: string;
@@ -245,6 +256,7 @@ export const api = {
   addExpense: (data: {
     group_id: string;
     amount: number;
+    currency?: SupportedCurrency;
     description: string;
     note?: string;
     receipt_data?: string;
@@ -262,6 +274,7 @@ export const api = {
     data: {
       description?: string;
       amount?: number;
+      currency?: SupportedCurrency;
       note?: string;
       receipt_data?: string | null;
       incurred_on?: string;

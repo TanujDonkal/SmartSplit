@@ -2,6 +2,7 @@ import { Response } from "express";
 import { Prisma } from "@prisma/client";
 import prisma from "../utils/prisma";
 import { AuthRequest } from "../middleware/auth";
+import { convertAmountToBase, normalizeCurrency } from "../utils/currency";
 
 function toPair(userId: string, friendId: string) {
   return userId < friendId
@@ -32,6 +33,7 @@ async function getFriendshipOrNull(userId: string, friendId: string) {
 function getFriendSummaryNumbers(
   activities: Array<{
     amount: Prisma.Decimal | number;
+    converted_amount: Prisma.Decimal | number;
     split_type: "EQUAL" | "FULL_AMOUNT";
     activity_type: "EXPENSE" | "SETTLEMENT";
     payer: { id: string };
@@ -44,14 +46,15 @@ function getFriendSummaryNumbers(
 
   activities.forEach((activity) => {
     const amount = Number(activity.amount);
+    const convertedAmount = Number(activity.converted_amount);
     const paidByMe = activity.payer.id === userId;
 
     if (activity.activity_type === "SETTLEMENT") {
-      netBalance += paidByMe ? -amount : amount;
+      netBalance += paidByMe ? -convertedAmount : convertedAmount;
       return;
     }
 
-    const impact = activity.split_type === "FULL_AMOUNT" ? amount : amount / 2;
+    const impact = activity.split_type === "FULL_AMOUNT" ? convertedAmount : convertedAmount / 2;
 
     if (paidByMe) {
       youPaidTotal += amount;
@@ -176,6 +179,7 @@ export const addFriendExpense = async (
   const {
     description,
     amount,
+    currency,
     paid_by,
     split_type,
     note,
@@ -184,6 +188,7 @@ export const addFriendExpense = async (
   }: {
     description?: string;
     amount?: number;
+    currency?: string;
     paid_by?: "self" | "friend";
     split_type?: "equal" | "full_amount";
     note?: string;
@@ -207,12 +212,16 @@ export const addFriendExpense = async (
     }
 
     const payerId = paid_by === "self" ? userId : friendId;
+    const converted = await convertAmountToBase(amount, currency);
 
     const expense = await prisma.friendExpense.create({
       data: {
         friendship_id: friendship.id,
         payer_id: payerId,
         amount: new Prisma.Decimal(amount),
+        currency: converted.currency,
+        exchange_rate_to_base: new Prisma.Decimal(converted.exchangeRateToBase),
+        converted_amount: new Prisma.Decimal(converted.convertedAmount),
         description: description.trim(),
         split_type: split_type === "equal" ? "EQUAL" : "FULL_AMOUNT",
         note: note?.trim() || null,
@@ -239,6 +248,7 @@ export const updateFriendExpense = async (
   const {
     description,
     amount,
+    currency,
     paid_by,
     split_type,
     note,
@@ -247,6 +257,7 @@ export const updateFriendExpense = async (
   } = req.body as {
     description?: string;
     amount?: number;
+    currency?: string;
     paid_by?: "self" | "friend";
     split_type?: "equal" | "full_amount";
     note?: string;
@@ -271,14 +282,20 @@ export const updateFriendExpense = async (
       return;
     }
 
+    const nextAmount =
+      typeof amount === "number" && amount > 0 ? amount : Number(existing.amount);
+    const nextCurrency =
+      currency === undefined ? existing.currency : normalizeCurrency(currency);
+    const converted = await convertAmountToBase(nextAmount, nextCurrency);
+
     const expense = await prisma.friendExpense.update({
       where: { id: expenseId },
       data: {
         description: description?.trim() || existing.description,
-        amount:
-          typeof amount === "number" && amount > 0
-            ? new Prisma.Decimal(amount)
-            : existing.amount,
+        amount: new Prisma.Decimal(nextAmount),
+        currency: converted.currency,
+        exchange_rate_to_base: new Prisma.Decimal(converted.exchangeRateToBase),
+        converted_amount: new Prisma.Decimal(converted.convertedAmount),
         payer_id:
           paid_by === "self"
             ? userId
@@ -422,6 +439,9 @@ export const settleUpFriend = async (
         friendship_id: friendship.id,
         payer_id: payerId,
         amount: new Prisma.Decimal(Math.abs(summary.netBalance)),
+        currency: "CAD",
+        exchange_rate_to_base: new Prisma.Decimal(1),
+        converted_amount: new Prisma.Decimal(Math.abs(summary.netBalance)),
         description: "Settle up",
         split_type: "FULL_AMOUNT",
         activity_type: "SETTLEMENT",
