@@ -80,6 +80,7 @@ export default function GroupDetail() {
     note: '',
     incurred_on: new Date().toISOString().slice(0, 10),
     receipt_data: '',
+    receipt_storage_key: null as string | null,
   });
   const [detailForm, setDetailForm] = useState({
     description: '',
@@ -90,6 +91,7 @@ export default function GroupDetail() {
     note: '',
     incurred_on: new Date().toISOString().slice(0, 10),
     receipt_data: '',
+    receipt_storage_key: null as string | null,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingMember, setIsAddingMember] = useState(false);
@@ -97,6 +99,8 @@ export default function GroupDetail() {
   const [isUpdatingExpense, setIsUpdatingExpense] = useState(false);
   const [isDeletingExpense, setIsDeletingExpense] = useState(false);
   const [isPostingComment, setIsPostingComment] = useState(false);
+  const [isParsingReceipt, setIsParsingReceipt] = useState(false);
+  const [isParsingDetailReceipt, setIsParsingDetailReceipt] = useState(false);
   const [error, setError] = useState('');
   const group = useMemo(() => groups.find((entry) => entry.id === groupId), [groupId, groups]);
 
@@ -160,6 +164,7 @@ export default function GroupDetail() {
       note: selectedExpense.note ?? '',
       incurred_on: toDateInputValue(selectedExpense.incurred_on),
       receipt_data: selectedExpense.receipt_data ?? '',
+      receipt_storage_key: selectedExpense.receipt_storage_key ?? null,
     });
     setCommentBody('');
   }, [group, selectedExpense]);
@@ -292,9 +297,9 @@ export default function GroupDetail() {
 
     if (!file) {
       if (mode === 'create') {
-        setExpenseForm((current) => ({ ...current, receipt_data: '' }));
+        setExpenseForm((current) => ({ ...current, receipt_data: '', receipt_storage_key: null }));
       } else {
-        setDetailForm((current) => ({ ...current, receipt_data: '' }));
+        setDetailForm((current) => ({ ...current, receipt_data: '', receipt_storage_key: null }));
       }
       return;
     }
@@ -302,12 +307,55 @@ export default function GroupDetail() {
     try {
       const value = await readFileAsDataUrl(file);
       if (mode === 'create') {
-        setExpenseForm((current) => ({ ...current, receipt_data: value }));
+        setExpenseForm((current) => ({ ...current, receipt_data: value, receipt_storage_key: null }));
       } else {
-        setDetailForm((current) => ({ ...current, receipt_data: value }));
+        setDetailForm((current) => ({ ...current, receipt_data: value, receipt_storage_key: null }));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load receipt image');
+    }
+  }
+
+  async function handleParseReceipt(mode: 'create' | 'edit') {
+    const target = mode === 'create' ? expenseForm : detailForm;
+
+    if (!target.receipt_data) {
+      setError('Upload a receipt first');
+      return;
+    }
+
+    mode === 'create' ? setIsParsingReceipt(true) : setIsParsingDetailReceipt(true);
+    setError('');
+
+    try {
+      const result = await api.parseReceipt({
+        receipt_data: target.receipt_data,
+        existing_receipt_storage_key: target.receipt_storage_key,
+      });
+
+      const applyParsed = (current: typeof expenseForm) => ({
+        ...current,
+        receipt_data: result.receipt_data,
+        receipt_storage_key: result.receipt_storage_key ?? null,
+        description: result.parsed.description || current.description,
+        amount:
+          result.parsed.amount !== null ? String(result.parsed.amount.toFixed(2)) : current.amount,
+        currency: result.parsed.currency ?? current.currency,
+        incurred_on: result.parsed.incurred_on
+          ? new Date(result.parsed.incurred_on).toISOString().slice(0, 10)
+          : current.incurred_on,
+        note: result.parsed.note ?? current.note,
+      });
+
+      if (mode === 'create') {
+        setExpenseForm((current) => applyParsed(current));
+      } else {
+        setDetailForm((current) => applyParsed(current));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to parse receipt');
+    } finally {
+      mode === 'create' ? setIsParsingReceipt(false) : setIsParsingDetailReceipt(false);
     }
   }
 
@@ -383,6 +431,7 @@ export default function GroupDetail() {
         currency: expenseForm.currency,
         note: expenseForm.note.trim(),
         receipt_data: expenseForm.receipt_data || undefined,
+        receipt_storage_key: expenseForm.receipt_storage_key || undefined,
         incurred_on: buildIsoDate(expenseForm.incurred_on),
         split_type: expenseForm.split_type,
         splits: expenseForm.split_type === 'manual' ? manualSplits : undefined,
@@ -396,6 +445,7 @@ export default function GroupDetail() {
         note: '',
         incurred_on: new Date().toISOString().slice(0, 10),
         receipt_data: '',
+        receipt_storage_key: null,
       });
       setShowAddExpenseForm(false);
       await refreshGroupData(groupId);
@@ -453,6 +503,7 @@ export default function GroupDetail() {
         currency: detailForm.currency,
         note: detailForm.note.trim(),
         receipt_data: detailForm.receipt_data || null,
+        receipt_storage_key: detailForm.receipt_storage_key || null,
         incurred_on: buildIsoDate(detailForm.incurred_on),
         split_type: detailForm.split_type,
         splits: detailForm.split_type === 'manual' ? manualSplits : undefined,
@@ -753,11 +804,21 @@ export default function GroupDetail() {
             </label>
 
             {expenseForm.receipt_data ? (
-              <img
-                src={expenseForm.receipt_data}
-                alt="Receipt preview"
-                className="h-40 w-full rounded-2xl object-cover"
-              />
+              <div className="space-y-3">
+                <img
+                  src={expenseForm.receipt_data}
+                  alt="Receipt preview"
+                  className="h-40 w-full rounded-2xl object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleParseReceipt('create')}
+                  disabled={isParsingReceipt}
+                  className="outline-button w-full px-4 py-3 text-sm"
+                >
+                  {isParsingReceipt ? 'Parsing receipt...' : 'Parse receipt with AI'}
+                </button>
+              </div>
             ) : null}
 
             <div className="flex flex-wrap gap-2 text-sm">
@@ -1132,7 +1193,17 @@ export default function GroupDetail() {
               </label>
 
               {detailForm.receipt_data ? (
-                <img src={detailForm.receipt_data} alt="Receipt" className="h-44 w-full rounded-2xl object-cover" />
+                <div className="space-y-3">
+                  <img src={detailForm.receipt_data} alt="Receipt" className="h-44 w-full rounded-2xl object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => void handleParseReceipt('edit')}
+                    disabled={isParsingDetailReceipt}
+                    className="outline-button w-full px-4 py-3 text-sm"
+                  >
+                    {isParsingDetailReceipt ? 'Parsing receipt...' : 'Parse receipt with AI'}
+                  </button>
+                </div>
               ) : null}
 
               <div className="rounded-2xl bg-[#f7f8f4] px-4 py-4">

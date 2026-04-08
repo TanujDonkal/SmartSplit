@@ -125,6 +125,7 @@ export async function deleteStoredReceipt(storageKey: string | null | undefined)
 
 export async function resolveStoredReceipt(
   incomingReceipt: string | null | undefined,
+  incomingStorageKey: string | null | undefined,
   existingReceiptUrl: string | null | undefined,
   existingStorageKey: string | null | undefined,
 ): Promise<StoredReceipt> {
@@ -148,7 +149,7 @@ export async function resolveStoredReceipt(
   if (isRemoteUrl(normalized)) {
     return {
       url: normalized,
-      storageKey: existingStorageKey ?? null,
+      storageKey: incomingStorageKey ?? existingStorageKey ?? null,
     };
   }
 

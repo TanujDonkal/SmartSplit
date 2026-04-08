@@ -149,7 +149,7 @@ export const addExpense = async (
     const total = new Prisma.Decimal(amount);
     const converted = await convertAmountToBase(Number(amount), currency);
     const convertedTotal = new Prisma.Decimal(converted.convertedAmount);
-    const storedReceipt = await resolveStoredReceipt(receipt_data, null, null);
+    const storedReceipt = await resolveStoredReceipt(receipt_data, null, null, null);
     const splitRows = buildSplitRows(
       total,
       convertedTotal,
@@ -273,7 +273,7 @@ export const updateExpense = async (
 ): Promise<void> => {
   const userId = req.userId!;
   const expenseId = req.params.expenseId as string;
-  const { description, amount, note, receipt_data, incurred_on, currency, split_type, splits } = req.body;
+  const { description, amount, note, receipt_data, receipt_storage_key, incurred_on, currency, split_type, splits } = req.body;
 
   try {
     const existing = await prisma.expense.findUnique({
@@ -310,6 +310,7 @@ export const updateExpense = async (
     const convertedTotal = new Prisma.Decimal(converted.convertedAmount);
     const storedReceipt = await resolveStoredReceipt(
       receipt_data,
+      receipt_storage_key,
       existing.receipt_data,
       existing.receipt_storage_key,
     );

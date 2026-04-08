@@ -62,6 +62,7 @@ export default function FriendDetail() {
     note: '',
     incurred_on: new Date().toISOString().slice(0, 10),
     receipt_data: '',
+    receipt_storage_key: null as string | null,
   });
   const [detailForm, setDetailForm] = useState({
     description: '',
@@ -71,6 +72,7 @@ export default function FriendDetail() {
     note: '',
     incurred_on: new Date().toISOString().slice(0, 10),
     receipt_data: '',
+    receipt_storage_key: null as string | null,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -78,6 +80,8 @@ export default function FriendDetail() {
   const [isUpdatingExpense, setIsUpdatingExpense] = useState(false);
   const [isDeletingExpense, setIsDeletingExpense] = useState(false);
   const [isPostingComment, setIsPostingComment] = useState(false);
+  const [isParsingReceipt, setIsParsingReceipt] = useState(false);
+  const [isParsingDetailReceipt, setIsParsingDetailReceipt] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -103,6 +107,7 @@ export default function FriendDetail() {
       note: selectedExpense.note ?? '',
       incurred_on: toDateInputValue(selectedExpense.incurred_on),
       receipt_data: selectedExpense.receipt_data ?? '',
+      receipt_storage_key: selectedExpense.receipt_storage_key ?? null,
     });
     setCommentBody('');
   }, [selectedExpense, user?.id]);
@@ -218,9 +223,9 @@ export default function FriendDetail() {
 
     if (!file) {
       if (mode === 'create') {
-        setForm((current) => ({ ...current, receipt_data: '' }));
+        setForm((current) => ({ ...current, receipt_data: '', receipt_storage_key: null }));
       } else {
-        setDetailForm((current) => ({ ...current, receipt_data: '' }));
+        setDetailForm((current) => ({ ...current, receipt_data: '', receipt_storage_key: null }));
       }
       return;
     }
@@ -228,12 +233,55 @@ export default function FriendDetail() {
     try {
       const value = await readFileAsDataUrl(file);
       if (mode === 'create') {
-        setForm((current) => ({ ...current, receipt_data: value }));
+        setForm((current) => ({ ...current, receipt_data: value, receipt_storage_key: null }));
       } else {
-        setDetailForm((current) => ({ ...current, receipt_data: value }));
+        setDetailForm((current) => ({ ...current, receipt_data: value, receipt_storage_key: null }));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load receipt image');
+    }
+  }
+
+  async function handleParseReceipt(mode: 'create' | 'edit') {
+    const target = mode === 'create' ? form : detailForm;
+
+    if (!target.receipt_data) {
+      setError('Upload a receipt first');
+      return;
+    }
+
+    mode === 'create' ? setIsParsingReceipt(true) : setIsParsingDetailReceipt(true);
+    setError('');
+
+    try {
+      const result = await api.parseReceipt({
+        receipt_data: target.receipt_data,
+        existing_receipt_storage_key: target.receipt_storage_key,
+      });
+
+      const applyParsed = (current: typeof form) => ({
+        ...current,
+        receipt_data: result.receipt_data,
+        receipt_storage_key: result.receipt_storage_key ?? null,
+        description: result.parsed.description || current.description,
+        amount:
+          result.parsed.amount !== null ? String(result.parsed.amount.toFixed(2)) : current.amount,
+        currency: result.parsed.currency ?? current.currency,
+        incurred_on: result.parsed.incurred_on
+          ? new Date(result.parsed.incurred_on).toISOString().slice(0, 10)
+          : current.incurred_on,
+        note: result.parsed.note ?? current.note,
+      });
+
+      if (mode === 'create') {
+        setForm((current) => applyParsed(current));
+      } else {
+        setDetailForm((current) => applyParsed(current));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to parse receipt');
+    } finally {
+      mode === 'create' ? setIsParsingReceipt(false) : setIsParsingDetailReceipt(false);
     }
   }
 
@@ -260,6 +308,7 @@ export default function FriendDetail() {
         currency: form.currency,
         note: form.note.trim(),
         receipt_data: form.receipt_data || undefined,
+        receipt_storage_key: form.receipt_storage_key || undefined,
         incurred_on: buildIsoDate(form.incurred_on),
         ...payloadByOption(form.option),
       });
@@ -272,6 +321,7 @@ export default function FriendDetail() {
         note: '',
         incurred_on: new Date().toISOString().slice(0, 10),
         receipt_data: '',
+        receipt_storage_key: null,
       });
       setShowAddExpenseForm(false);
       await loadFriendDetail(friendId);
@@ -305,6 +355,7 @@ export default function FriendDetail() {
         currency: detailForm.currency,
         note: detailForm.note.trim(),
         receipt_data: detailForm.receipt_data || null,
+        receipt_storage_key: detailForm.receipt_storage_key || null,
         incurred_on: buildIsoDate(detailForm.incurred_on),
         ...payloadByOption(detailForm.option),
       });
@@ -610,11 +661,21 @@ export default function FriendDetail() {
             </label>
 
             {form.receipt_data ? (
-              <img
-                src={form.receipt_data}
-                alt="Receipt preview"
-                className="h-40 w-full rounded-2xl object-cover"
-              />
+              <div className="space-y-3">
+                <img
+                  src={form.receipt_data}
+                  alt="Receipt preview"
+                  className="h-40 w-full rounded-2xl object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleParseReceipt('create')}
+                  disabled={isParsingReceipt}
+                  className="outline-button w-full px-4 py-3 text-sm"
+                >
+                  {isParsingReceipt ? 'Parsing receipt...' : 'Parse receipt with AI'}
+                </button>
+              </div>
             ) : null}
 
             <button type="submit" disabled={isSaving} className="primary-button w-full px-4 py-3">
@@ -807,11 +868,21 @@ export default function FriendDetail() {
                 </label>
 
                 {detailForm.receipt_data ? (
-                  <img
-                    src={detailForm.receipt_data}
-                    alt="Receipt"
-                    className="h-44 w-full rounded-2xl object-cover"
-                  />
+                  <div className="space-y-3">
+                    <img
+                      src={detailForm.receipt_data}
+                      alt="Receipt"
+                      className="h-44 w-full rounded-2xl object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleParseReceipt('edit')}
+                      disabled={isParsingDetailReceipt}
+                      className="outline-button w-full px-4 py-3 text-sm"
+                    >
+                      {isParsingDetailReceipt ? 'Parsing receipt...' : 'Parse receipt with AI'}
+                    </button>
+                  </div>
                 ) : null}
 
                 <div className="flex gap-3">

@@ -46,6 +46,7 @@ export interface Expense {
   converted_amount: string;
   note?: string | null;
   receipt_data?: string | null;
+  receipt_storage_key?: string | null;
   incurred_on: string;
   created_at: string;
   updated_at?: string;
@@ -88,6 +89,7 @@ export interface FriendExpense {
   activity_type: 'EXPENSE' | 'SETTLEMENT';
   note?: string | null;
   receipt_data?: string | null;
+  receipt_storage_key?: string | null;
   incurred_on: string;
   created_at: string;
   updated_at?: string;
@@ -121,6 +123,18 @@ export interface FriendSummary {
 export interface GroupExpenseSplitInput {
   user_id: string;
   amount_owed: number;
+}
+
+export interface ParsedReceiptResult {
+  receipt_data: string;
+  receipt_storage_key?: string | null;
+  parsed: {
+    description: string;
+    amount: number | null;
+    currency: SupportedCurrency;
+    incurred_on: string | null;
+    note: string | null;
+  };
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -197,6 +211,7 @@ export const api = {
       split_type: 'equal' | 'full_amount';
       note?: string;
       receipt_data?: string;
+      receipt_storage_key?: string | null;
       incurred_on?: string;
     },
   ) =>
@@ -217,6 +232,7 @@ export const api = {
       split_type?: 'equal' | 'full_amount';
       note?: string;
       receipt_data?: string | null;
+      receipt_storage_key?: string | null;
       incurred_on?: string;
     },
   ) =>
@@ -260,6 +276,7 @@ export const api = {
     description: string;
     note?: string;
     receipt_data?: string;
+    receipt_storage_key?: string | null;
     incurred_on?: string;
     split_type?: 'equal' | 'manual';
     splits?: GroupExpenseSplitInput[];
@@ -277,6 +294,7 @@ export const api = {
       currency?: SupportedCurrency;
       note?: string;
       receipt_data?: string | null;
+      receipt_storage_key?: string | null;
       incurred_on?: string;
       split_type?: 'equal' | 'manual';
       splits?: GroupExpenseSplitInput[];
@@ -292,6 +310,15 @@ export const api = {
     }),
   addExpenseComment: (expenseId: string, data: { body: string }) =>
     request<ExpenseComment>(`/expenses/${expenseId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  parseReceipt: (data: {
+    receipt_data?: string;
+    existing_receipt_data?: string | null;
+    existing_receipt_storage_key?: string | null;
+  }) =>
+    request<ParsedReceiptResult>('/receipts/parse', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
