@@ -8,14 +8,18 @@ import { sendPasswordResetOtpEmail } from "../utils/mailer";
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 
 export const register = async (req: Request, res: Response): Promise<void> => {
-  const { name, email, password } = req.body;
+  const name = String(req.body.name ?? "").trim();
+  const email = String(req.body.email ?? "").trim().toLowerCase();
+  const password = String(req.body.password ?? "");
 
   if (!name || !email || !password) {
     res.status(400).json({ error: "Name, email, and password are required" });
     return;
   }
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+  });
   if (existing) {
     res.status(409).json({ error: "Email already registered" });
     return;
@@ -32,14 +36,17 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 };
 
 export const login = async (req: Request, res: Response): Promise<void> => {
-  const { email, password } = req.body;
+  const email = String(req.body.email ?? "").trim().toLowerCase();
+  const password = String(req.body.password ?? "");
 
   if (!email || !password) {
     res.status(400).json({ error: "Email and password are required" });
     return;
   }
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+  });
   if (!user) {
     res.status(401).json({ error: "Invalid email or password" });
     return;
@@ -73,7 +80,9 @@ export const requestPasswordResetOtp = async (
   }
 
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+    });
 
     if (!user) {
       res.json({ message: "If that account exists, an OTP has been sent." });
@@ -134,7 +143,9 @@ export const resetPasswordWithOtp = async (
   }
 
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+    });
 
     if (!user) {
       res.status(404).json({ error: "No account found with that email" });
@@ -326,7 +337,7 @@ export const updateProfile = async (
   try {
     const existing = await prisma.user.findFirst({
       where: {
-        email,
+        email: { equals: email, mode: "insensitive" },
         id: { not: userId },
       },
       select: { id: true },
