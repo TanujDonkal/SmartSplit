@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, SUPPORTED_CURRENCIES } from '../api';
-import type { Expense, Friend, Group, SupportedCurrency } from '../api';
+import type { AssistantChatMessage, Expense, Friend, Group, SupportedCurrency } from '../api';
 import { useAuth } from '../context/useAuth';
 
 type DashboardExpense = Expense & { groupName: string };
 type ChatMessage = {
   id: string;
-  role: 'assistant' | 'user';
+  role: AssistantChatMessage['role'];
   text: string;
 };
 
@@ -44,6 +44,7 @@ export default function Dashboard() {
       text: 'Hi, I am your SmartSplit assistant. Ask me about splitting with a friend, creating a group, or settling balances.',
     },
   ]);
+  const [isSendingAiMessage, setIsSendingAiMessage] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [expenseTarget, setExpenseTarget] = useState<'friend' | 'group'>('friend');
   const [selectedFriendId, setSelectedFriendId] = useState('');
@@ -214,33 +215,11 @@ export default function Dashboard() {
     navigate('/login', { state: { message } });
   }
 
-  function buildAssistantReply(message: string) {
-    const lower = message.toLowerCase();
-
-    if (lower.includes('friend')) {
-      return 'To split with a friend, open Friends, add the friend by their registered email, then use Add expense and choose With a friend.';
-    }
-
-    if (lower.includes('group')) {
-      return 'To split in a group, create or open a group, add members, then use Add expense and choose In a group.';
-    }
-
-    if (lower.includes('settle') || lower.includes('owe') || lower.includes('owed')) {
-      return 'You can settle balances from a friend detail screen using Settle up, or review group settlements inside each group.';
-    }
-
-    if (lower.includes('receipt') || lower.includes('note') || lower.includes('comment')) {
-      return 'Receipts, notes, and comments can be added while creating an expense, and you can update them later from expense details.';
-    }
-
-    return 'I can help with friend splits, group expenses, balances, settlements, receipts, and expense details. Try asking about one of those.';
-  }
-
-  function handleAskAiSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleAskAiSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const trimmed = aiInput.trim();
-    if (!trimmed) {
+    if (!trimmed || isSendingAiMessage) {
       return;
     }
 
@@ -249,14 +228,43 @@ export default function Dashboard() {
       role: 'user',
       text: trimmed,
     };
-    const assistantMessage: ChatMessage = {
-      id: `assistant-${Date.now() + 1}`,
-      role: 'assistant',
-      text: buildAssistantReply(trimmed),
-    };
-
-    setChatMessages((current) => [...current, userMessage, assistantMessage]);
     setAiInput('');
+
+    const nextMessages = [...chatMessages, userMessage];
+    setChatMessages(nextMessages);
+    setIsSendingAiMessage(true);
+
+    try {
+      const response = await api.askAssistant({
+        messages: nextMessages.map((message) => ({
+          role: message.role,
+          text: message.text,
+        })),
+      });
+
+      setChatMessages((current) => [
+        ...current,
+        {
+          id: `assistant-${Date.now() + 1}`,
+          role: 'assistant',
+          text: response.reply,
+        },
+      ]);
+    } catch (err) {
+      setChatMessages((current) => [
+        ...current,
+        {
+          id: `assistant-error-${Date.now() + 1}`,
+          role: 'assistant',
+          text:
+            err instanceof Error
+              ? `I couldn't reach SmartSplit AI right now: ${err.message}`
+              : 'I could not reach SmartSplit AI right now.',
+        },
+      ]);
+    } finally {
+      setIsSendingAiMessage(false);
+    }
   }
 
   async function handleDeleteAccount() {
@@ -1105,9 +1113,14 @@ export default function Dashboard() {
                   onChange={(event) => setAiInput(event.target.value)}
                   placeholder="Ask how to split something..."
                   className="form-input"
+                  disabled={isSendingAiMessage}
                 />
-                <button type="submit" className="primary-button px-5 py-3 text-sm">
-                  Send
+                <button
+                  type="submit"
+                  className="primary-button px-5 py-3 text-sm"
+                  disabled={isSendingAiMessage}
+                >
+                  {isSendingAiMessage ? 'Sending...' : 'Send'}
                 </button>
               </div>
             </form>

@@ -6,6 +6,7 @@ import groupsRouter from "./routes/groups";
 import expensesRouter from "./routes/expenses";
 import friendsRouter from "./routes/friends";
 import receiptsRouter from "./routes/receipts";
+import assistantRouter from "./routes/assistant";
 
 const app = express();
 
@@ -20,5 +21,6 @@ app.use("/api/friends", friendsRouter);
 app.use("/api/groups", groupsRouter);
 app.use("/api/expenses", expensesRouter);
 app.use("/api/receipts", receiptsRouter);
+app.use("/api/assistant", assistantRouter);
 
 export default app;
