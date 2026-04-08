@@ -733,7 +733,6 @@ export default function GroupDetail() {
                 ? `Split preview: ${group.members.length} member(s) would each owe $${splitPreview.toFixed(2)}.`
                 : `Manual preview: total assigned is $${manualSplitTotal.toFixed(2)}.`}
             </div>
-
             <button type="submit" disabled={isAddingExpense} className="primary-button w-full px-4 py-4">
               {isAddingExpense ? 'Saving expense...' : 'Save expense'}
             </button>
