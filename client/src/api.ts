@@ -137,6 +137,11 @@ export interface ParsedReceiptResult {
   };
 }
 
+export interface AssistantChatMessage {
+  role: 'assistant' | 'user';
+  text: string;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('token');
   const headers: Record<string, string> = {
@@ -319,6 +324,11 @@ export const api = {
     existing_receipt_storage_key?: string | null;
   }) =>
     request<ParsedReceiptResult>('/receipts/parse', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  askAssistant: (data: { messages: AssistantChatMessage[] }) =>
+    request<{ reply: string }>('/assistant/chat', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
