@@ -24,12 +24,93 @@ async function ensureGroupMembership(groupId: string, userId: string) {
   });
 }
 
+function buildEqualSplitRows(total: Prisma.Decimal, userIds: string[]) {
+  const totalCents = Math.round(Number(total) * 100);
+  const memberCount = userIds.length;
+  const baseCents = Math.floor(totalCents / memberCount);
+  const remainder = totalCents % memberCount;
+
+  return userIds.map((userId, index) => ({
+    user_id: userId,
+    amount_owed: new Prisma.Decimal((baseCents + (index < remainder ? 1 : 0)) / 100),
+  }));
+}
+
+function buildManualSplitRows(
+  total: Prisma.Decimal,
+  userIds: string[],
+  rawSplits: Array<{ user_id: string; amount_owed: number | string }>,
+) {
+  const memberSet = new Set(userIds);
+
+  if (rawSplits.length !== userIds.length) {
+    throw new Error("Manual split must include every group member");
+  }
+
+  const seen = new Set<string>();
+  const normalized = rawSplits.map((split) => {
+    const userId = String(split.user_id ?? "");
+    const amount = Number(split.amount_owed);
+
+    if (!memberSet.has(userId)) {
+      throw new Error("Manual split contains an invalid group member");
+    }
+
+    if (seen.has(userId)) {
+      throw new Error("Manual split contains duplicate members");
+    }
+    seen.add(userId);
+
+    if (!Number.isFinite(amount) || amount < 0) {
+      throw new Error("Manual split amounts must be zero or greater");
+    }
+
+    return {
+      user_id: userId,
+      amount_owed: new Prisma.Decimal(amount).toDecimalPlaces(2),
+    };
+  });
+
+  const totalManual = normalized.reduce(
+    (sum, split) => sum.plus(split.amount_owed),
+    new Prisma.Decimal(0),
+  );
+
+  if (!totalManual.equals(total.toDecimalPlaces(2))) {
+    throw new Error("Manual split total must match the expense amount");
+  }
+
+  return normalized;
+}
+
+function buildSplitRows(
+  total: Prisma.Decimal,
+  userIds: string[],
+  splitType: "equal" | "manual",
+  rawSplits: Array<{ user_id: string; amount_owed: number | string }> = [],
+) {
+  if (splitType === "manual") {
+    return buildManualSplitRows(total, userIds, rawSplits);
+  }
+
+  return buildEqualSplitRows(total, userIds);
+}
+
 // POST /api/expenses
 export const addExpense = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
-  const { group_id, amount, description, note, receipt_data, incurred_on } = req.body;
+  const {
+    group_id,
+    amount,
+    description,
+    note,
+    receipt_data,
+    incurred_on,
+    split_type,
+    splits,
+  } = req.body;
   const payerId = req.userId!;
 
   if (!group_id || !amount || !description) {
@@ -52,8 +133,12 @@ export const addExpense = async (
 
     const members = await prisma.groupMember.findMany({ where: { group_id } });
     const total = new Prisma.Decimal(amount);
-    const memberCount = members.length;
-    const splitAmount = total.dividedBy(memberCount).toDecimalPlaces(2);
+    const splitRows = buildSplitRows(
+      total,
+      members.map((member) => member.user_id),
+      split_type === "manual" ? "manual" : "equal",
+      Array.isArray(splits) ? splits : [],
+    );
 
     const expense = await prisma.$transaction(async (tx) => {
       const newExpense = await tx.expense.create({
@@ -69,10 +154,10 @@ export const addExpense = async (
       });
 
       await tx.expenseSplit.createMany({
-        data: members.map((member) => ({
+        data: splitRows.map((split) => ({
           expense_id: newExpense.id,
-          user_id: member.user_id,
-          amount_owed: splitAmount,
+          user_id: split.user_id,
+          amount_owed: split.amount_owed,
         })),
       });
 
@@ -85,6 +170,10 @@ export const addExpense = async (
     res.status(201).json(expense);
   } catch (error) {
     console.error("Add expense error:", error);
+    if (error instanceof Error && error.message.toLowerCase().includes("split")) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
     res.status(500).json({ error: "Failed to add expense" });
   }
 };
@@ -156,7 +245,7 @@ export const updateExpense = async (
 ): Promise<void> => {
   const userId = req.userId!;
   const expenseId = req.params.expenseId as string;
-  const { description, amount, note, receipt_data, incurred_on } = req.body;
+  const { description, amount, note, receipt_data, incurred_on, split_type, splits } = req.body;
 
   try {
     const existing = await prisma.expense.findUnique({
@@ -180,11 +269,17 @@ export const updateExpense = async (
       where: { group_id: existing.group_id },
     });
 
+    const numericAmount = Number(amount);
     const nextAmount =
-      typeof amount === "number" && amount > 0
-        ? new Prisma.Decimal(amount)
+      Number.isFinite(numericAmount) && numericAmount > 0
+        ? new Prisma.Decimal(numericAmount)
         : existing.amount;
-    const splitAmount = nextAmount.dividedBy(members.length).toDecimalPlaces(2);
+    const splitRows = buildSplitRows(
+      nextAmount,
+      members.map((member) => member.user_id),
+      split_type === "manual" ? "manual" : "equal",
+      Array.isArray(splits) ? splits : [],
+    );
 
     const expense = await prisma.$transaction(async (tx) => {
       const updated = await tx.expense.update({
@@ -203,10 +298,10 @@ export const updateExpense = async (
 
       await tx.expenseSplit.deleteMany({ where: { expense_id: expenseId } });
       await tx.expenseSplit.createMany({
-        data: members.map((member) => ({
+        data: splitRows.map((split) => ({
           expense_id: expenseId,
-          user_id: member.user_id,
-          amount_owed: splitAmount,
+          user_id: split.user_id,
+          amount_owed: split.amount_owed,
         })),
       });
 
@@ -219,6 +314,10 @@ export const updateExpense = async (
     res.json(expense);
   } catch (error) {
     console.error("Update expense error:", error);
+    if (error instanceof Error && error.message.toLowerCase().includes("split")) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
     res.status(500).json({ error: "Failed to update expense" });
   }
 };

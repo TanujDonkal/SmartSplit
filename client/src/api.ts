@@ -108,6 +108,12 @@ export interface FriendSummary {
   friend_paid_total: number;
   last_activity: string | null;
 }
+
+export interface GroupExpenseSplitInput {
+  user_id: string;
+  amount_owed: number;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('token');
   const headers: Record<string, string> = {
@@ -243,6 +249,8 @@ export const api = {
     note?: string;
     receipt_data?: string;
     incurred_on?: string;
+    split_type?: 'equal' | 'manual';
+    splits?: GroupExpenseSplitInput[];
   }) =>
     request<Expense>('/expenses', {
       method: 'POST',
@@ -257,6 +265,8 @@ export const api = {
       note?: string;
       receipt_data?: string | null;
       incurred_on?: string;
+      split_type?: 'equal' | 'manual';
+      splits?: GroupExpenseSplitInput[];
     },
   ) =>
     request<Expense>(`/expenses/${expenseId}`, {
