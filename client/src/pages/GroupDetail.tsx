@@ -5,6 +5,12 @@ import { api } from '../api';
 import type { Balance, Expense, Friend, Group, Settlement } from '../api';
 import { useAuth } from '../context/useAuth';
 
+type ManualSplitEntry = {
+  user_id: string;
+  name: string;
+  amount: string;
+};
+
 function toDateInputValue(value: string) {
   return new Date(value).toISOString().slice(0, 10);
 }
@@ -22,6 +28,29 @@ async function readFileAsDataUrl(file: File) {
   });
 }
 
+function createManualSplitDraft(group: Group, amount = '') {
+  return group.members.map((member) => ({
+    user_id: member.user.id,
+    name: member.user.name,
+    amount,
+  }));
+}
+
+function inferSplitType(expense: Expense, memberCount: number) {
+  const splits = expense.splits ?? [];
+
+  if (splits.length !== memberCount || splits.length === 0) {
+    return 'manual' as const;
+  }
+
+  const firstAmount = Number(splits[0].amount_owed);
+  const allEqual = splits.every(
+    (split) => Math.abs(Number(split.amount_owed) - firstAmount) < 0.001,
+  );
+
+  return allEqual ? ('equal' as const) : ('manual' as const);
+}
+
 export default function GroupDetail() {
   const { groupId } = useParams();
   const { user } = useAuth();
@@ -37,6 +66,8 @@ export default function GroupDetail() {
   const [expenseForm, setExpenseForm] = useState({
     description: '',
     amount: '',
+    split_type: 'equal' as 'equal' | 'manual',
+    manual_splits: [] as ManualSplitEntry[],
     note: '',
     incurred_on: new Date().toISOString().slice(0, 10),
     receipt_data: '',
@@ -44,6 +75,8 @@ export default function GroupDetail() {
   const [detailForm, setDetailForm] = useState({
     description: '',
     amount: '',
+    split_type: 'equal' as 'equal' | 'manual',
+    manual_splits: [] as ManualSplitEntry[],
     note: '',
     incurred_on: new Date().toISOString().slice(0, 10),
     receipt_data: '',
@@ -55,6 +88,7 @@ export default function GroupDetail() {
   const [isDeletingExpense, setIsDeletingExpense] = useState(false);
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [error, setError] = useState('');
+  const group = useMemo(() => groups.find((entry) => entry.id === groupId), [groupId, groups]);
 
   useEffect(() => {
     async function run() {
@@ -95,17 +129,49 @@ export default function GroupDetail() {
       return;
     }
 
+    const splitType = inferSplitType(selectedExpense, group?.members.length ?? 0);
     setDetailForm({
       description: selectedExpense.description,
       amount: String(Number(selectedExpense.amount).toFixed(2)),
+      split_type: splitType,
+      manual_splits:
+        group?.members.map((member) => {
+          const existingSplit = selectedExpense.splits?.find(
+            (split) => split.user.id === member.user.id,
+          );
+
+          return {
+            user_id: member.user.id,
+            name: member.user.name,
+            amount: existingSplit ? Number(existingSplit.amount_owed).toFixed(2) : '0.00',
+          };
+        }) ?? [],
       note: selectedExpense.note ?? '',
       incurred_on: toDateInputValue(selectedExpense.incurred_on),
       receipt_data: selectedExpense.receipt_data ?? '',
     });
     setCommentBody('');
-  }, [selectedExpense]);
+  }, [group, selectedExpense]);
 
-  const group = useMemo(() => groups.find((entry) => entry.id === groupId), [groupId, groups]);
+  useEffect(() => {
+    if (!group) {
+      return;
+    }
+
+    setExpenseForm((current) => {
+      const currentIds = current.manual_splits.map((split) => split.user_id).join(',');
+      const nextIds = group.members.map((member) => member.user.id).join(',');
+
+      if (currentIds === nextIds && current.manual_splits.length === group.members.length) {
+        return current;
+      }
+
+      return {
+        ...current,
+        manual_splits: createManualSplitDraft(group),
+      };
+    });
+  }, [group]);
 
   const sortedExpenses = useMemo(
     () =>
@@ -127,6 +193,15 @@ export default function GroupDetail() {
 
     return amount / group.members.length;
   }, [expenseForm.amount, group]);
+
+  const manualSplitTotal = useMemo(
+    () =>
+      expenseForm.manual_splits.reduce((sum, split) => {
+        const value = Number(split.amount);
+        return sum + (Number.isFinite(value) ? value : 0);
+      }, 0),
+    [expenseForm.manual_splits],
+  );
 
   const myBalance = useMemo(() => {
     const mine = balances.find((entry) => entry.user.id === user?.id);
@@ -223,6 +298,24 @@ export default function GroupDetail() {
     await addMemberByEmail(memberEmail);
   }
 
+  function updateCreateManualSplit(userId: string, amount: string) {
+    setExpenseForm((current) => ({
+      ...current,
+      manual_splits: current.manual_splits.map((split) =>
+        split.user_id === userId ? { ...split, amount } : split,
+      ),
+    }));
+  }
+
+  function updateDetailManualSplit(userId: string, amount: string) {
+    setDetailForm((current) => ({
+      ...current,
+      manual_splits: current.manual_splits.map((split) =>
+        split.user_id === userId ? { ...split, amount } : split,
+      ),
+    }));
+  }
+
   async function handleAddExpense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -237,6 +330,30 @@ export default function GroupDetail() {
       return;
     }
 
+    const manualSplits =
+      expenseForm.split_type === 'manual'
+        ? expenseForm.manual_splits.map((split) => ({
+            user_id: split.user_id,
+            amount_owed: Number(split.amount),
+          }))
+        : [];
+
+    if (
+      expenseForm.split_type === 'manual' &&
+      manualSplits.some((split) => !Number.isFinite(split.amount_owed) || split.amount_owed < 0)
+    ) {
+      setError('Manual split amounts must be zero or greater');
+      return;
+    }
+
+    if (
+      expenseForm.split_type === 'manual' &&
+      Math.abs(manualSplits.reduce((sum, split) => sum + split.amount_owed, 0) - amount) > 0.009
+    ) {
+      setError('Manual split amounts must add up to the full expense total');
+      return;
+    }
+
     setIsAddingExpense(true);
     setError('');
 
@@ -248,10 +365,14 @@ export default function GroupDetail() {
         note: expenseForm.note.trim(),
         receipt_data: expenseForm.receipt_data || undefined,
         incurred_on: buildIsoDate(expenseForm.incurred_on),
+        split_type: expenseForm.split_type,
+        splits: expenseForm.split_type === 'manual' ? manualSplits : undefined,
       });
       setExpenseForm({
         description: '',
         amount: '',
+        split_type: 'equal',
+        manual_splits: group ? createManualSplitDraft(group) : [],
         note: '',
         incurred_on: new Date().toISOString().slice(0, 10),
         receipt_data: '',
@@ -278,6 +399,30 @@ export default function GroupDetail() {
       return;
     }
 
+    const manualSplits =
+      detailForm.split_type === 'manual'
+        ? detailForm.manual_splits.map((split) => ({
+            user_id: split.user_id,
+            amount_owed: Number(split.amount),
+          }))
+        : [];
+
+    if (
+      detailForm.split_type === 'manual' &&
+      manualSplits.some((split) => !Number.isFinite(split.amount_owed) || split.amount_owed < 0)
+    ) {
+      setError('Manual split amounts must be zero or greater');
+      return;
+    }
+
+    if (
+      detailForm.split_type === 'manual' &&
+      Math.abs(manualSplits.reduce((sum, split) => sum + split.amount_owed, 0) - amount) > 0.009
+    ) {
+      setError('Manual split amounts must add up to the full expense total');
+      return;
+    }
+
     setIsUpdatingExpense(true);
     setError('');
 
@@ -288,6 +433,8 @@ export default function GroupDetail() {
         note: detailForm.note.trim(),
         receipt_data: detailForm.receipt_data || null,
         incurred_on: buildIsoDate(detailForm.incurred_on),
+        split_type: detailForm.split_type,
+        splits: detailForm.split_type === 'manual' ? manualSplits : undefined,
       });
       setSelectedExpense(updated);
       await refreshGroupData(groupId);
@@ -493,6 +640,55 @@ export default function GroupDetail() {
             </label>
 
             <label className="block space-y-2">
+              <span className="text-sm font-medium text-slate-700">Split type</span>
+              <select
+                value={expenseForm.split_type}
+                onChange={(event) =>
+                  setExpenseForm((current) => ({
+                    ...current,
+                    split_type: event.target.value as 'equal' | 'manual',
+                  }))
+                }
+                className="form-input"
+              >
+                <option value="equal">Split equally</option>
+                <option value="manual">Manual split</option>
+              </select>
+            </label>
+
+            {expenseForm.split_type === 'manual' ? (
+              <div className="space-y-3 rounded-2xl bg-[#f7f8f4] px-4 py-4">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Manual split amounts</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Enter how much each member owes. The total must match the expense amount.
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  {expenseForm.manual_splits.map((split) => (
+                    <label key={split.user_id} className="flex items-center justify-between gap-4">
+                      <span className="text-sm font-medium text-slate-700">{split.name}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={split.amount}
+                        onChange={(event) =>
+                          updateCreateManualSplit(split.user_id, event.target.value)
+                        }
+                        className="form-input w-32"
+                      />
+                    </label>
+                  ))}
+                </div>
+                <div className="rounded-2xl bg-white px-4 py-3 text-sm text-slate-600">
+                  Manual total: ${manualSplitTotal.toFixed(2)} / ${Number(expenseForm.amount || 0).toFixed(2)}
+                </div>
+              </div>
+            ) : null}
+
+            <label className="block space-y-2">
               <span className="text-sm font-medium text-slate-700">Optional note</span>
               <textarea
                 rows={3}
@@ -528,12 +724,14 @@ export default function GroupDetail() {
                 Paid by you
               </span>
               <span className="rounded-full bg-[#f6f7f3] px-3 py-2 font-medium text-slate-600">
-                Split equally
+                {expenseForm.split_type === 'equal' ? 'Split equally' : 'Manual split'}
               </span>
             </div>
 
             <div className="rounded-2xl bg-[#eef8f7] px-4 py-3 text-sm text-[#2b938c]">
-              Split preview: {group.members.length} member(s) would each owe ${splitPreview.toFixed(2)}.
+              {expenseForm.split_type === 'equal'
+                ? `Split preview: ${group.members.length} member(s) would each owe $${splitPreview.toFixed(2)}.`
+                : `Manual preview: total assigned is $${manualSplitTotal.toFixed(2)}.`}
             </div>
 
             <button type="submit" disabled={isAddingExpense} className="primary-button w-full px-4 py-4">
@@ -709,7 +907,9 @@ export default function GroupDetail() {
 
                 {expense.splits?.length ? (
                   <div className="mt-4 rounded-2xl bg-[#f6f7f3] px-3 py-3">
-                    <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Equal split</p>
+                    <p className="text-xs uppercase tracking-[0.16em] text-slate-400">
+                      {inferSplitType(expense, group.members.length) === 'equal' ? 'Equal split' : 'Manual split'}
+                    </p>
                     <div className="mt-3 space-y-2">
                       {expense.splits.map((split) => (
                         <div key={split.id} className="flex items-center justify-between text-sm">
@@ -794,6 +994,52 @@ export default function GroupDetail() {
               </label>
 
               <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Split type</span>
+                <select
+                  value={detailForm.split_type}
+                  onChange={(event) =>
+                    setDetailForm((current) => ({
+                      ...current,
+                      split_type: event.target.value as 'equal' | 'manual',
+                    }))
+                  }
+                  className="form-input"
+                >
+                  <option value="equal">Split equally</option>
+                  <option value="manual">Manual split</option>
+                </select>
+              </label>
+
+              {detailForm.split_type === 'manual' ? (
+                <div className="space-y-3 rounded-2xl bg-[#f7f8f4] px-4 py-4">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Manual split amounts</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Update how much each member owes for this expense.
+                    </p>
+                  </div>
+                  <div className="space-y-3">
+                    {detailForm.manual_splits.map((split) => (
+                      <label key={split.user_id} className="flex items-center justify-between gap-4">
+                        <span className="text-sm font-medium text-slate-700">{split.name}</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          inputMode="decimal"
+                          value={split.amount}
+                          onChange={(event) =>
+                            updateDetailManualSplit(split.user_id, event.target.value)
+                          }
+                          className="form-input w-32"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <label className="block space-y-2">
                 <span className="text-sm font-medium text-slate-700">Note</span>
                 <textarea
                   rows={3}
@@ -818,7 +1064,9 @@ export default function GroupDetail() {
               ) : null}
 
               <div className="rounded-2xl bg-[#f7f8f4] px-4 py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Split breakdown</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  {detailForm.split_type === 'equal' ? 'Equal split' : 'Manual split'}
+                </p>
                 <div className="mt-3 space-y-2">
                   {(selectedExpense.splits ?? []).map((split) => (
                     <div key={split.id} className="flex items-center justify-between text-sm">
