@@ -214,7 +214,7 @@ export const addFriendExpense = async (
 
     const payerId = paid_by === "self" ? userId : friendId;
     const converted = await convertAmountToBase(amount, currency);
-    const storedReceipt = await resolveStoredReceipt(receipt_data, null, null);
+    const storedReceipt = await resolveStoredReceipt(receipt_data, null, null, null);
 
     const expense = await prisma.friendExpense.create({
       data: {
@@ -256,6 +256,7 @@ export const updateFriendExpense = async (
     split_type,
     note,
     receipt_data,
+    receipt_storage_key,
     incurred_on,
   } = req.body as {
     description?: string;
@@ -265,6 +266,7 @@ export const updateFriendExpense = async (
     split_type?: "equal" | "full_amount";
     note?: string;
     receipt_data?: string | null;
+    receipt_storage_key?: string | null;
     incurred_on?: string;
   };
 
@@ -292,6 +294,7 @@ export const updateFriendExpense = async (
     const converted = await convertAmountToBase(nextAmount, nextCurrency);
     const storedReceipt = await resolveStoredReceipt(
       receipt_data,
+      receipt_storage_key,
       existing.receipt_data,
       existing.receipt_storage_key,
     );
