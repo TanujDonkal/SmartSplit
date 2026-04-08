@@ -1,7 +1,28 @@
 import nodemailer from "nodemailer";
+import SMTPTransport from "nodemailer/lib/smtp-transport";
 import dns from "node:dns";
 
 dns.setDefaultResultOrder("ipv4first");
+
+type IPv4SMTPTransportOptions = SMTPTransport.Options & {
+  family: 4;
+  lookup: typeof lookupIpv4;
+};
+
+function lookupIpv4(hostname: string, options: unknown, callback: (err: NodeJS.ErrnoException | null, address: string, family: number) => void) {
+  const normalizedOptions =
+    typeof options === "object" && options !== null ? (options as dns.LookupOneOptions) : {};
+
+  dns.lookup(
+    hostname,
+    {
+      ...normalizedOptions,
+      family: 4,
+      all: false,
+    },
+    callback,
+  );
+}
 
 function createTransport() {
   const host = process.env.SMTP_HOST;
@@ -13,15 +34,19 @@ function createTransport() {
     return null;
   }
 
-  return nodemailer.createTransport({
+  const transportOptions: IPv4SMTPTransportOptions = {
     host: host || "smtp.gmail.com",
     port,
     secure: String(process.env.SMTP_SECURE ?? "true").toLowerCase() === "true",
+    family: 4,
+    lookup: lookupIpv4,
     auth: {
       user,
       pass,
     },
-  });
+  };
+
+  return nodemailer.createTransport(transportOptions as SMTPTransport.Options);
 }
 
 export async function sendPasswordResetOtpEmail(params: {
