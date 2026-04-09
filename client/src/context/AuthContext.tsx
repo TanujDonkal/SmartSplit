@@ -8,6 +8,8 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 interface AuthContextType {
   token: string | null;
   user: { id: string; name: string; email: string; default_currency?: string } | null;
+  isReady: boolean;
+  isAuthenticated: boolean;
   login: (token: string, user: { id: string; name: string; email: string; default_currency?: string }) => void;
   updateUser: (user: { id: string; name: string; email: string; default_currency?: string }) => void;
   logout: () => Promise<void>;
@@ -16,11 +18,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>(null!);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
-  const [user, setUser] = useState<AuthContextType['user']>(() => {
-    const stored = localStorage.getItem('user');
-    return stored ? JSON.parse(stored) : null;
-  });
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<AuthContextType['user']>(null);
+  const [isReady, setIsReady] = useState(false);
 
   const login = (token: string, user: { id: string; name: string; email: string; default_currency?: string }) => {
     localStorage.setItem('token', token);
@@ -75,36 +75,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => {
-      const accessToken = data.session?.access_token ?? null;
-      if (accessToken) {
-        localStorage.setItem('token', accessToken);
-        setToken(accessToken);
-        void syncSupabaseSessionUser(data.session).catch((error) => {
-          console.error('Auth session sync error:', error);
-          clearSessionState();
-          void supabase.auth.signOut();
-        });
+    const applySession = async (session: Session | null, errorLabel: string) => {
+      const accessToken = session?.access_token ?? null;
+
+      if (!accessToken) {
+        clearSessionState();
+        setIsReady(true);
+        return;
       }
+
+      localStorage.setItem('token', accessToken);
+      setToken(accessToken);
+
+      try {
+        await syncSupabaseSessionUser(session);
+      } catch (error) {
+        console.error(errorLabel, error);
+        clearSessionState();
+        await supabase.auth.signOut();
+      } finally {
+        setIsReady(true);
+      }
+    };
+
+    void supabase.auth.getSession().then(({ data }) => {
+      void applySession(data.session, 'Auth session sync error:');
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      const accessToken = session?.access_token ?? null;
-
-      if (accessToken) {
-        localStorage.setItem('token', accessToken);
-        void syncSupabaseSessionUser(session).catch((error) => {
-          console.error('Auth state sync error:', error);
-          clearSessionState();
-          void supabase.auth.signOut();
-        });
-      } else {
-        clearSessionState();
-      }
-
-      setToken(accessToken);
+      void applySession(session, 'Auth state sync error:');
     });
 
     // Sync state if localStorage changes in another tab
@@ -121,8 +122,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const isAuthenticated = Boolean(token && user);
+
   return (
-    <AuthContext.Provider value={{ token, user, login, updateUser, logout }}>
+    <AuthContext.Provider
+      value={{ token, user, isReady, isAuthenticated, login, updateUser, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );

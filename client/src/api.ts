@@ -181,16 +181,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  requestPasswordResetOtp: (data: { email: string }) =>
-    request<{ message: string }>('/auth/forgot-password/request', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-  resetPasswordWithOtp: (data: { email: string; otp: string; password: string }) =>
-    request<{ message: string }>('/auth/forgot-password/reset', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
   deleteAccount: () =>
     request<{ message: string }>('/auth/me', {
       method: 'DELETE',
