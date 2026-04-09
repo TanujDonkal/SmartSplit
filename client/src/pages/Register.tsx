@@ -27,6 +27,7 @@ export default function Register() {
     }
 
     setIsSubmitting(true);
+    let signedIn = false;
 
     try {
       const { data, error: authError } = await supabase.auth.signUp({
@@ -44,6 +45,7 @@ export default function Register() {
       }
 
       if (data.session?.access_token && data.user?.email) {
+        signedIn = true;
         const syncedUser = await api.syncCurrentUser({
           email: data.user.email,
           name: form.name.trim(),
@@ -61,6 +63,9 @@ export default function Register() {
         },
       });
     } catch (err) {
+      if (signedIn) {
+        await supabase.auth.signOut();
+      }
       setError(err instanceof Error ? err.message : 'Unable to create account');
     } finally {
       setIsSubmitting(false);

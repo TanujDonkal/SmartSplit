@@ -9,7 +9,7 @@ const tabs = [
 ];
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { token, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -42,7 +42,7 @@ export default function Layout() {
               </div>
             </Link>
 
-            {user ? (
+            {token ? (
               <button
                 onClick={() => void handleLogout()}
                 className="rounded-full border border-[#d6d7d2] bg-white px-4 py-2 text-sm font-semibold text-slate-700"

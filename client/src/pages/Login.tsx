@@ -26,6 +26,7 @@ export default function Login() {
     event.preventDefault();
     setError('');
     setIsSubmitting(true);
+    let signedIn = false;
 
     try {
       const { data, error: authError } = await supabase.auth.signInWithPassword({
@@ -43,6 +44,7 @@ export default function Login() {
         throw new Error('No authenticated session was returned');
       }
 
+      signedIn = true;
       const syncedUser = await api.syncCurrentUser({
         email: data.user.email ?? form.email.trim().toLowerCase(),
         name: String(data.user.user_metadata?.name ?? '').trim() || undefined,
@@ -51,6 +53,9 @@ export default function Login() {
       login(accessToken, syncedUser);
       navigate('/dashboard?tab=friends');
     } catch (err) {
+      if (signedIn) {
+        await supabase.auth.signOut();
+      }
       setError(err instanceof Error ? err.message : 'Unable to sign in');
     } finally {
       setIsSubmitting(false);
