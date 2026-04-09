@@ -28,7 +28,7 @@ export default function Layout() {
   return (
     <div className="app-shell">
       <div className="mobile-shell flex flex-col">
-        <header className="sticky top-0 z-20 border-b border-[#e8e8e0] bg-[#fffdfa]/95 px-5 py-4 backdrop-blur">
+        <header className="sticky top-0 z-20 border-b border-[#e8e8e0] bg-[#fffdfa]/95 px-4 py-4 backdrop-blur md:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-3">
             <Link to="/dashboard?tab=groups" className="flex items-center gap-3">
               <img
@@ -70,12 +70,12 @@ export default function Layout() {
           </div>
         </header>
 
-        <main className="flex-1 px-4 pb-28 pt-4">
+        <main className="flex-1 px-4 pb-32 pt-4 md:px-6 lg:px-8 lg:pb-10 lg:pt-6">
           <Outlet />
         </main>
 
-        <nav className="bottom-tab-shadow fixed bottom-0 left-0 right-0 z-30 border-t border-[#e4e5df] bg-white/96 backdrop-blur">
-          <div className="mx-auto grid w-full max-w-[30rem] grid-cols-4 px-3 py-2">
+        <nav className="app-bottom-nav fixed bottom-0 left-0 right-0 z-30 border-t border-[#e4e5df] bg-white/96 backdrop-blur">
+          <div className="mx-auto grid w-full max-w-[76rem] grid-cols-4 px-3 py-2 md:px-5 lg:px-6">
             {tabs.map((tab) => {
               const active = currentTab === tab.key;
               return (
