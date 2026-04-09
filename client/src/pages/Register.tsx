@@ -51,10 +51,13 @@ export default function Register() {
 
       if (data.session?.access_token && data.user?.email) {
         signedIn = true;
-        const syncedUser = await api.syncCurrentUser({
-          email: data.user.email,
-          name: form.name.trim(),
-        }, data.session.access_token);
+        const syncedUser = await api.syncCurrentUser(
+          {
+            email: data.user.email,
+            name: form.name.trim(),
+          },
+          data.session.access_token,
+        );
         login(data.session.access_token, syncedUser);
         navigate('/dashboard?tab=friends', { replace: true });
         return;
@@ -63,8 +66,7 @@ export default function Register() {
       navigate('/login', {
         replace: true,
         state: {
-          message:
-            'Account created. Check your email to confirm your account, then log in.',
+          message: 'Account created. Check your email to confirm your account, then log in.',
         },
       });
     } catch (err) {
@@ -89,7 +91,8 @@ export default function Register() {
               Create one account for direct splits, group trips, receipts, and account control.
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-slate-600">
-              The same account gives you friend balances, group expenses, AI-assisted receipts, and clean account management across all screen sizes.
+              The same account gives you friend balances, group expenses, AI-assisted receipts,
+              and clean account management across all screen sizes.
             </p>
           </div>
 
@@ -100,7 +103,8 @@ export default function Register() {
               className="h-auto w-full max-w-[18rem] object-contain"
             />
             <div className="rounded-[1.5rem] bg-white/85 px-4 py-4 text-sm text-slate-500">
-              Sign up once, then move between desktop, tablet, and mobile without changing the flow.
+              Sign up once, then move between desktop, tablet, and mobile without changing the
+              flow.
             </div>
           </div>
         </section>
@@ -120,9 +124,7 @@ export default function Register() {
             />
             <h1 className="mb-8 text-4xl font-semibold text-slate-900">Sign up</h1>
 
-            {!isReady ? (
-              <NoticeBanner tone="info" message="Checking your session..." />
-            ) : null}
+            {!isReady ? <NoticeBanner tone="info" message="Checking your session..." /> : null}
 
             {error ? (
               <NoticeBanner tone="error" message={error} onClose={() => setError('')} />

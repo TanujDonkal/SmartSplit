@@ -11,8 +11,11 @@ function getRateLimitMessage(error: unknown) {
   const rawMessage = error instanceof Error ? error.message : 'Unable to send reset email';
   const normalized = rawMessage.toLowerCase();
 
-  if (normalized.includes('rate limit') || normalized.includes('over_email_send_rate_limit')) {
-    return `A reset email was sent recently. Supabase free projects usually allow one reset request per 60 seconds, so please wait a minute and try again.`;
+  if (
+    normalized.includes('rate limit') ||
+    normalized.includes('over_email_send_rate_limit')
+  ) {
+    return 'A reset email was sent recently. Supabase free projects usually allow one reset request per 60 seconds, so please wait a minute and try again.';
   }
 
   return rawMessage;
@@ -103,12 +106,14 @@ export default function ForgotPassword() {
               Regain access securely without breaking your account flow.
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-slate-600">
-              SmartSplit uses Supabase password reset links, so you can request recovery safely and continue on any device once the email arrives.
+              SmartSplit uses Supabase password reset links, so you can request recovery safely
+              and continue on any device once the email arrives.
             </p>
           </div>
 
           <div className="rounded-[1.6rem] bg-white/85 px-5 py-5 text-sm leading-7 text-slate-500">
-            To stay within the Supabase free-plan email limit, reset requests are cooled down for 60 seconds before another email can be sent.
+            To stay within the Supabase free-plan email limit, reset requests are cooled down for
+            60 seconds before another email can be sent.
           </div>
         </section>
 

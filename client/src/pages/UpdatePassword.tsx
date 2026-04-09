@@ -100,12 +100,14 @@ export default function UpdatePassword() {
               Finish recovery and get back into SmartSplit with a new password.
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-slate-600">
-              Once your reset link opens this page with a valid recovery session, you can set a new password and continue using the app normally on any screen.
+              Once your reset link opens this page with a valid recovery session, you can set a
+              new password and continue using the app normally on any screen.
             </p>
           </div>
 
           <div className="rounded-[1.6rem] bg-white/85 px-5 py-5 text-sm leading-7 text-slate-500">
-            Use a password you have not used before and keep it at least 6 characters long so your sign-in stays consistent across devices.
+            Use a password you have not used before and keep it at least 6 characters long so your
+            sign-in stays consistent across devices.
           </div>
         </section>
 
@@ -137,7 +139,8 @@ export default function UpdatePassword() {
 
             {!hasRecoverySession ? (
               <div className="rounded-2xl border border-[#e8e8e0] bg-white px-4 py-4 text-sm text-slate-600 shadow-[0_12px_30px_rgba(31,41,55,0.05)]">
-                Open the password reset link from your email first. That link will bring you back here with a secure recovery session.
+                Open the password reset link from your email first. That link will bring you back
+                here with a secure recovery session.
               </div>
             ) : (
               <form className="space-y-5" onSubmit={handleSubmit}>

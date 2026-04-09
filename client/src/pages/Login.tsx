@@ -64,10 +64,13 @@ export default function Login() {
       }
 
       signedIn = true;
-      const syncedUser = await api.syncCurrentUser({
-        email: data.user.email ?? form.email.trim().toLowerCase(),
-        name: String(data.user.user_metadata?.name ?? '').trim() || undefined,
-      }, accessToken);
+      const syncedUser = await api.syncCurrentUser(
+        {
+          email: data.user.email ?? form.email.trim().toLowerCase(),
+          name: String(data.user.user_metadata?.name ?? '').trim() || undefined,
+        },
+        accessToken,
+      );
 
       login(accessToken, syncedUser);
       navigate('/dashboard?tab=friends');
@@ -93,7 +96,8 @@ export default function Login() {
               Pick up your friends, groups, and balances exactly where you left them.
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-slate-600">
-              SmartSplit keeps everyday direct splits and group workflows in one clean space, whether you are logging in from mobile, tablet, or desktop.
+              SmartSplit keeps everyday direct splits and group workflows in one clean space,
+              whether you are logging in from mobile, tablet, or desktop.
             </p>
           </div>
 
@@ -124,12 +128,14 @@ export default function Login() {
             />
             <h1 className="mb-8 text-4xl font-semibold text-slate-900">Log in</h1>
 
-            {!isReady ? (
-              <NoticeBanner tone="info" message="Checking your session..." />
-            ) : null}
+            {!isReady ? <NoticeBanner tone="info" message="Checking your session..." /> : null}
 
             {infoMessage ? (
-              <NoticeBanner tone="success" message={infoMessage} onClose={() => setInfoMessage('')} />
+              <NoticeBanner
+                tone="success"
+                message={infoMessage}
+                onClose={() => setInfoMessage('')}
+              />
             ) : null}
 
             {error ? (
