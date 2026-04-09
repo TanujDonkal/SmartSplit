@@ -62,7 +62,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('user', JSON.stringify(syncedUser));
     setUser(syncedUser);
   };
-
   const logout = async () => {
     await supabase.auth.signOut();
     localStorage.removeItem('token');

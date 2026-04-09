@@ -45,7 +45,6 @@ export default function Login() {
       }
 
       signedIn = true;
-
       const syncedUser = await api.syncCurrentUser({
         email: data.user.email ?? form.email.trim().toLowerCase(),
         name: String(data.user.user_metadata?.name ?? '').trim() || undefined,

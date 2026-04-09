@@ -246,7 +246,6 @@ export const syncCurrentUser = async (
       res.json(migratedUser);
       return;
     }
-
     const user = await prisma.user.upsert({
       where: { id: userId },
       update: {
