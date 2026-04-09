@@ -34,6 +34,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(user);
   };
 
+  const clearSessionState = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setToken(null);
+    setUser(null);
+  };
+
   const syncSupabaseSessionUser = async (session: Session | null) => {
     const accessToken = session?.access_token ?? null;
 
@@ -64,10 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
   const logout = async () => {
     await supabase.auth.signOut();
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setToken(null);
-    setUser(null);
+    clearSessionState();
   };
 
   useEffect(() => {
@@ -78,6 +82,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(accessToken);
         void syncSupabaseSessionUser(data.session).catch((error) => {
           console.error('Auth session sync error:', error);
+          clearSessionState();
+          void supabase.auth.signOut();
         });
       }
     });
@@ -91,11 +97,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('token', accessToken);
         void syncSupabaseSessionUser(session).catch((error) => {
           console.error('Auth state sync error:', error);
+          clearSessionState();
+          void supabase.auth.signOut();
         });
       } else {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setUser(null);
+        clearSessionState();
       }
 
       setToken(accessToken);

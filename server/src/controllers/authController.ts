@@ -8,6 +8,12 @@ import { getSupabaseAdminClient } from "../utils/supabaseAdmin";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 
+function toFriendshipPair(userId: string, friendId: string) {
+  return userId < friendId
+    ? { user_a_id: userId, user_b_id: friendId }
+    : { user_a_id: friendId, user_b_id: userId };
+}
+
 export const register = async (req: Request, res: Response): Promise<void> => {
   const name = String(req.body.name ?? "").trim();
   const email = String(req.body.email ?? "").trim().toLowerCase();
@@ -175,6 +181,115 @@ export const syncCurrentUser = async (
           });
         }
 
+        const existingMemberships = await tx.groupMember.findMany({
+          where: { user_id: existing.id },
+          select: { id: true, group_id: true },
+        });
+        const currentMemberships = await tx.groupMember.findMany({
+          where: { user_id: userId },
+          select: { group_id: true },
+        });
+        const currentGroupIds = new Set(currentMemberships.map((membership) => membership.group_id));
+        const duplicateMembershipIds = existingMemberships
+          .filter((membership) => currentGroupIds.has(membership.group_id))
+          .map((membership) => membership.id);
+
+        if (duplicateMembershipIds.length > 0) {
+          await tx.groupMember.deleteMany({
+            where: { id: { in: duplicateMembershipIds } },
+          });
+        }
+
+        const existingFriendships = await tx.friendship.findMany({
+          where: {
+            OR: [{ user_a_id: existing.id }, { user_b_id: existing.id }],
+          },
+          select: {
+            id: true,
+            user_a_id: true,
+            user_b_id: true,
+          },
+        });
+
+        for (const friendship of existingFriendships) {
+          const otherUserId =
+            friendship.user_a_id === existing.id ? friendship.user_b_id : friendship.user_a_id;
+          const targetPair = toFriendshipPair(userId, otherUserId);
+          const currentFriendship = await tx.friendship.findUnique({
+            where: { user_a_id_user_b_id: targetPair },
+            select: { id: true },
+          });
+
+          if (currentFriendship) {
+            await tx.friendExpense.updateMany({
+              where: { friendship_id: friendship.id },
+              data: { friendship_id: currentFriendship.id },
+            });
+            await tx.friendship.delete({
+              where: { id: friendship.id },
+            });
+            continue;
+          }
+
+          await tx.friendship.update({
+            where: { id: friendship.id },
+            data: targetPair,
+          });
+        }
+
+        const duplicateSplitGroups = await tx.expenseSplit.groupBy({
+          by: ['expense_id'],
+          where: {
+            user_id: { in: [existing.id, userId] },
+          },
+          _count: { expense_id: true },
+          having: {
+            expense_id: {
+              _count: {
+                gt: 1,
+              },
+            },
+          },
+        });
+
+        for (const duplicate of duplicateSplitGroups) {
+          const splits = await tx.expenseSplit.findMany({
+            where: {
+              expense_id: duplicate.expense_id,
+              user_id: { in: [existing.id, userId] },
+            },
+            orderBy: { id: 'asc' },
+          });
+
+          if (splits.length < 2) {
+            continue;
+          }
+
+          const [primary, ...rest] = splits;
+          const mergedAmount = splits.reduce(
+            (total, split) => total + Number(split.amount_owed),
+            0,
+          );
+          const mergedConvertedAmount = splits.reduce(
+            (total, split) => total + Number(split.converted_amount_owed),
+            0,
+          );
+
+          await tx.expenseSplit.update({
+            where: { id: primary.id },
+            data: {
+              user_id: userId,
+              amount_owed: mergedAmount,
+              converted_amount_owed: mergedConvertedAmount,
+            },
+          });
+
+          if (rest.length > 0) {
+            await tx.expenseSplit.deleteMany({
+              where: { id: { in: rest.map((split) => split.id) } },
+            });
+          }
+        }
         await tx.group.updateMany({
           where: { created_by: existing.id },
           data: { created_by: userId },
@@ -190,14 +305,6 @@ export const syncCurrentUser = async (
         await tx.expenseSplit.updateMany({
           where: { user_id: existing.id },
           data: { user_id: userId },
-        });
-        await tx.friendship.updateMany({
-          where: { user_a_id: existing.id },
-          data: { user_a_id: userId },
-        });
-        await tx.friendship.updateMany({
-          where: { user_b_id: existing.id },
-          data: { user_b_id: userId },
         });
         await tx.friendExpense.updateMany({
           where: { payer_id: existing.id },

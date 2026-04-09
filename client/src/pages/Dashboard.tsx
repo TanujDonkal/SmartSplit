@@ -331,9 +331,14 @@ export default function Dashboard() {
         throw authError;
       }
 
-      const updated = await api.updateProfile({
-        name: trimmedName,
+      const syncedUser = await api.syncCurrentUser({
         email: authUpdate.user?.email?.trim().toLowerCase() ?? normalizedEmail,
+        name: trimmedName,
+      });
+
+      const updated = await api.updateProfile({
+        name: syncedUser.name,
+        email: syncedUser.email,
         default_currency: profileForm.default_currency,
       });
 
