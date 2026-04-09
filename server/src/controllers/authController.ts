@@ -290,7 +290,6 @@ export const syncCurrentUser = async (
             });
           }
         }
-
         await tx.group.updateMany({
           where: { created_by: existing.id },
           data: { created_by: userId },
