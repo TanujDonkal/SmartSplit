@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 
 const tabs = [
@@ -9,8 +9,7 @@ const tabs = [
 ];
 
 export default function Layout() {
-  const { isAuthenticated, isReady, logout } = useAuth();
-  const navigate = useNavigate();
+  const { isAuthenticated, isReady } = useAuth();
   const location = useLocation();
 
   const currentTab =
@@ -19,11 +18,6 @@ export default function Layout() {
       : location.pathname.startsWith('/friends/')
         ? 'friends'
       : new URLSearchParams(location.search).get('tab') ?? 'groups';
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
 
   return (
     <div className="app-shell">
@@ -45,12 +39,12 @@ export default function Layout() {
             {!isReady ? (
               <div className="h-10 w-24 rounded-full bg-[#f4f6f4]" />
             ) : isAuthenticated ? (
-              <button
-                onClick={() => void handleLogout()}
+              <Link
+                to={`/dashboard?tab=${currentTab}&ai=open`}
                 className="rounded-full border border-[#d6d7d2] bg-white px-4 py-2 text-sm font-semibold text-slate-700"
               >
-                Log out
-              </button>
+                Ask AI
+              </Link>
             ) : (
               <div className="flex items-center gap-2">
                 <Link
