@@ -1,12 +1,12 @@
+import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../context/useAuth';
 import { supabase } from '../lib/supabase';
 
 export default function Register() {
-  const { token, login } = useAuth();
+  const { isAuthenticated, isReady, login } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({
     name: '',
@@ -16,6 +16,10 @@ export default function Register() {
   });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (isReady && isAuthenticated) {
+    return <Navigate to="/dashboard?tab=friends" replace />;
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -88,13 +92,9 @@ export default function Register() {
         />
         <h1 className="mb-8 text-4xl font-semibold text-slate-900">Sign up</h1>
 
-        {token ? (
-          <div className="mb-4 rounded-2xl border border-[#c6e7dd] bg-[#eef9f5] px-4 py-3 text-sm text-[#116e54]">
-            You are already signed in. Go to your{' '}
-            <Link className="font-semibold underline" to="/dashboard?tab=friends">
-              dashboard
-            </Link>
-            .
+        {!isReady ? (
+          <div className="mb-4 rounded-2xl border border-[#e8e8e0] bg-white px-4 py-3 text-sm text-slate-500">
+            Checking your session...
           </div>
         ) : null}
 

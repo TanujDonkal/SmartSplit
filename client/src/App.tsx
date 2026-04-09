@@ -21,11 +21,9 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/update-password" element={<UpdatePassword />} />
-          <Route element={<Layout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-          </Route>
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/friends/:friendId" element={<FriendDetail />} />
               <Route path="/groups/:groupId" element={<GroupDetail />} />
             </Route>
