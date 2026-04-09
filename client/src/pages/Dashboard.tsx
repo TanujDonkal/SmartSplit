@@ -163,6 +163,12 @@ export default function Dashboard() {
     return () => window.clearTimeout(timer);
   }, [error]);
 
+  useEffect(() => {
+    if (searchParams.get('ai') === 'open') {
+      setShowAiChat(true);
+    }
+  }, [searchParams]);
+
   async function handleCreateGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -293,6 +299,23 @@ export default function Dashboard() {
     } finally {
       setIsDeletingAccount(false);
     }
+  }
+
+  async function handleLogoutFromAccount() {
+    await logout();
+    navigate('/login', { replace: true });
+  }
+
+  function handleCloseAiChat() {
+    setShowAiChat(false);
+
+    if (searchParams.get('ai') !== 'open') {
+      return;
+    }
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('ai');
+    navigate(`/dashboard?${nextParams.toString()}`, { replace: true });
   }
 
   async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
@@ -522,7 +545,7 @@ export default function Dashboard() {
       ) : null}
 
       <section className="rounded-[1.8rem] bg-white px-5 py-5 shadow-[0_12px_30px_rgba(31,41,55,0.05)]">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
           <div>
             <p className="text-sm text-slate-500">
               {token ? `Hi, ${user?.name ?? 'there'}` : 'Welcome'}
@@ -531,14 +554,6 @@ export default function Dashboard() {
               {dashboardOwedMessage}
             </h1>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowAiChat(true)}
-            className="action-chip px-3.5 py-2.5 text-sm font-semibold"
-          >
-            <span className="action-chip-icon">AI</span>
-            <span>Ask AI</span>
-          </button>
         </div>
       </section>
 
@@ -853,6 +868,22 @@ export default function Dashboard() {
               </button>
             </div>
           ) : null}
+
+          {token ? (
+            <div className="surface-card p-5">
+              <h3 className="text-lg font-semibold text-slate-900">Log out</h3>
+              <p className="mt-2 text-sm text-slate-600">
+                Sign out of this device and return to the login page.
+              </p>
+              <button
+                type="button"
+                onClick={() => void handleLogoutFromAccount()}
+                className="outline-button mt-4 w-full px-4 py-3 text-sm"
+              >
+                Log out
+              </button>
+            </div>
+          ) : null}
         </section>
       )}
 
@@ -1152,7 +1183,7 @@ export default function Dashboard() {
               </div>
               <button
                 type="button"
-                onClick={() => setShowAiChat(false)}
+                onClick={handleCloseAiChat}
                 className="grid h-10 w-10 place-items-center rounded-full border border-[#d8ddd9] bg-white text-lg text-slate-500"
               >
                 x
