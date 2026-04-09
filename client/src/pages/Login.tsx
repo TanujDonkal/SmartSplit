@@ -1,7 +1,8 @@
 import { Navigate, useLocation, useNavigate, Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api } from '../api';
+import NoticeBanner from '../components/NoticeBanner';
 import { useAuth } from '../context/useAuth';
 import { supabase } from '../lib/supabase';
 
@@ -19,8 +20,22 @@ export default function Login() {
     email: '',
     password: '',
   });
+  const [infoMessage, setInfoMessage] = useState(state?.message ?? '');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    setInfoMessage(state?.message ?? '');
+  }, [state?.message]);
+
+  useEffect(() => {
+    if (!infoMessage) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setInfoMessage(''), 6000);
+    return () => window.clearTimeout(timer);
+  }, [infoMessage]);
 
   if (isReady && isAuthenticated) {
     return <Navigate to="/dashboard?tab=friends" replace />;
@@ -88,16 +103,12 @@ export default function Login() {
           </div>
         ) : null}
 
-        {state?.message ? (
-          <div className="mb-4 rounded-2xl border border-[#c6e7dd] bg-[#eef9f5] px-4 py-3 text-sm text-[#116e54]">
-            {state.message}
-          </div>
+        {infoMessage ? (
+          <NoticeBanner tone="success" message={infoMessage} onClose={() => setInfoMessage('')} />
         ) : null}
 
         {error ? (
-          <div className="mb-4 rounded-2xl border border-[#f1c5b8] bg-[#fff1ec] px-4 py-3 text-sm text-[#bf5b37]">
-            {error}
-          </div>
+          <NoticeBanner tone="error" message={error} onClose={() => setError('')} />
         ) : null}
 
         <form className="space-y-5" onSubmit={handleSubmit}>

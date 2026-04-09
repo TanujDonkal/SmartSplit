@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import NoticeBanner from '../components/NoticeBanner';
 import { supabase } from '../lib/supabase';
 
 export default function UpdatePassword() {
@@ -38,6 +39,15 @@ export default function UpdatePassword() {
       subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!message) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setMessage(''), 6000);
+    return () => window.clearTimeout(timer);
+  }, [message]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -98,15 +108,11 @@ export default function UpdatePassword() {
         </p>
 
         {message ? (
-          <div className="mb-4 rounded-2xl border border-[#c6e7dd] bg-[#eef9f5] px-4 py-3 text-sm text-[#116e54]">
-            {message}
-          </div>
+          <NoticeBanner tone="success" message={message} onClose={() => setMessage('')} />
         ) : null}
 
         {error ? (
-          <div className="mb-4 rounded-2xl border border-[#f1c5b8] bg-[#fff1ec] px-4 py-3 text-sm text-[#bf5b37]">
-            {error}
-          </div>
+          <NoticeBanner tone="error" message={error} onClose={() => setError('')} />
         ) : null}
 
         {!hasRecoverySession ? (
