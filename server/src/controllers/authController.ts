@@ -5,6 +5,7 @@ import prisma from "../utils/prisma";
 import { AuthRequest } from "../middleware/auth";
 import { sendPasswordResetOtpEmail } from "../utils/mailer";
 import { getSupabaseAdminClient } from "../utils/supabaseAdmin";
+import { isValidUsername, normalizeUsername } from "../utils/username";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 
@@ -16,52 +17,63 @@ function toFriendshipPair(userId: string, friendId: string) {
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   const name = String(req.body.name ?? "").trim();
+  const username = normalizeUsername(req.body.username);
   const email = String(req.body.email ?? "").trim().toLowerCase();
   const password = String(req.body.password ?? "");
 
-  if (!name || !email || !password) {
-    res.status(400).json({ error: "Name, email, and password are required" });
+  if (!name || !username || !email || !password) {
+    res.status(400).json({ error: "Name, username, email, and password are required" });
+    return;
+  }
+
+  if (!isValidUsername(username)) {
+    res.status(400).json({ error: "Username must be 3-24 characters using only lowercase letters, numbers, and underscores" });
     return;
   }
 
   const existing = await prisma.user.findFirst({
-    where: { email: { equals: email, mode: "insensitive" } },
+    where: {
+      OR: [
+        { email: { equals: email, mode: "insensitive" } },
+        { username },
+      ],
+    },
   });
   if (existing) {
-    res.status(409).json({ error: "Email already registered" });
+    res.status(409).json({
+      error: existing.username === username ? "Username already taken" : "Email already registered",
+    });
     return;
   }
 
   const password_hash = await bcrypt.hash(password, 10);
 
   const user = await prisma.user.create({
-    data: { name, email, password_hash },
-    select: { id: true, name: true, email: true, created_at: true },
+    data: { name, username, email, password_hash },
+    select: { id: true, name: true, username: true, email: true, created_at: true },
   });
 
   res.status(201).json(user);
 };
 
 export const login = async (req: Request, res: Response): Promise<void> => {
-  const email = String(req.body.email ?? "").trim().toLowerCase();
+  const username = normalizeUsername(req.body.username);
   const password = String(req.body.password ?? "");
 
-  if (!email || !password) {
-    res.status(400).json({ error: "Email and password are required" });
+  if (!username || !password) {
+    res.status(400).json({ error: "Username and password are required" });
     return;
   }
 
-  const user = await prisma.user.findFirst({
-    where: { email: { equals: email, mode: "insensitive" } },
-  });
+  const user = await prisma.user.findUnique({ where: { username } });
   if (!user) {
-    res.status(401).json({ error: "Invalid email or password" });
+    res.status(401).json({ error: "Invalid username or password" });
     return;
   }
 
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) {
-    res.status(401).json({ error: "Invalid email or password" });
+    res.status(401).json({ error: "Invalid username or password" });
     return;
   }
 
@@ -71,8 +83,63 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
   res.json({
     token,
-    user: { id: user.id, name: user.name, email: user.email },
+    user: { id: user.id, name: user.name, username: user.username, email: user.email },
   });
+};
+
+export const validateRegistration = async (req: Request, res: Response): Promise<void> => {
+  const email = String(req.body.email ?? "").trim().toLowerCase();
+  const username = normalizeUsername(req.body.username);
+
+  if (!email || !username) {
+    res.status(400).json({ error: "Username and email are required" });
+    return;
+  }
+
+  if (!isValidUsername(username)) {
+    res.status(400).json({ error: "Username must be 3-24 characters using only lowercase letters, numbers, and underscores" });
+    return;
+  }
+
+  const existing = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { username },
+        { email: { equals: email, mode: "insensitive" } },
+      ],
+    },
+    select: { username: true, email: true },
+  });
+
+  if (existing) {
+    res.status(409).json({
+      error: existing.username === username ? "Username already taken" : "Email already registered",
+    });
+    return;
+  }
+
+  res.json({ ok: true });
+};
+
+export const resolveUsername = async (req: Request, res: Response): Promise<void> => {
+  const username = normalizeUsername(req.body.username);
+
+  if (!username) {
+    res.status(400).json({ error: "Username is required" });
+    return;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { username },
+    select: { email: true, username: true, name: true },
+  });
+
+  if (!user) {
+    res.status(404).json({ error: "No account found with that username" });
+    return;
+  }
+
+  res.json(user);
 };
 
 export const requestPasswordResetOtp = async (
@@ -142,13 +209,32 @@ export const syncCurrentUser = async (
   const userId = req.userId!;
   const email = String(req.userEmail ?? req.body.email ?? "").trim().toLowerCase();
   const name = String(req.body.name ?? req.userName ?? "").trim();
+  const username = normalizeUsername(req.body.username ?? req.userUsername);
 
-  if (!userId || !email) {
-    res.status(400).json({ error: "Authenticated user id and email are required" });
+  if (!userId || !email || !username) {
+    res.status(400).json({ error: "Authenticated user id, username, and email are required" });
+    return;
+  }
+
+  if (!isValidUsername(username)) {
+    res.status(400).json({ error: "Username must be 3-24 characters using only lowercase letters, numbers, and underscores" });
     return;
   }
 
   try {
+    const existingUsername = await prisma.user.findFirst({
+      where: {
+        username,
+        id: { not: userId },
+      },
+      select: { id: true, email: true },
+    });
+
+    if (existingUsername && existingUsername.email.toLowerCase() !== email) {
+      res.status(409).json({ error: "That username is already linked to another user" });
+      return;
+    }
+
     const existing = await prisma.user.findFirst({
       where: {
         email: { equals: email, mode: "insensitive" },
@@ -157,6 +243,7 @@ export const syncCurrentUser = async (
       select: {
         id: true,
         name: true,
+        username: true,
         email: true,
         default_currency: true,
       },
@@ -164,7 +251,7 @@ export const syncCurrentUser = async (
 
     const current = await prisma.user.findUnique({
       where: { id: userId },
-      select: { default_currency: true, name: true, email: true },
+      select: { default_currency: true, name: true, username: true, email: true },
     });
 
     if (existing) {
@@ -174,6 +261,7 @@ export const syncCurrentUser = async (
             data: {
               id: userId,
               email,
+              username,
               name: name || existing.name || "SmartSplit User",
               password_hash: "__managed_by_supabase__",
               default_currency: existing.default_currency || "CAD",
@@ -331,12 +419,14 @@ export const syncCurrentUser = async (
           where: { id: userId },
           update: {
             email,
+            username: existing.username || username,
             name: name || current?.name || existing.name || "SmartSplit User",
             default_currency: current?.default_currency || existing.default_currency || "CAD",
           },
           create: {
             id: userId,
             email,
+            username: existing.username || username,
             name: name || existing.name || "SmartSplit User",
             password_hash: "__managed_by_supabase__",
             default_currency: existing.default_currency || "CAD",
@@ -344,6 +434,7 @@ export const syncCurrentUser = async (
           select: {
             id: true,
             name: true,
+            username: true,
             email: true,
             default_currency: true,
           },
@@ -355,13 +446,15 @@ export const syncCurrentUser = async (
     }
     const user = await prisma.user.upsert({
       where: { id: userId },
-      update: {
-        email,
-        name: name || current?.name || "SmartSplit User",
-      },
+        update: {
+          email,
+          username,
+          name: name || current?.name || "SmartSplit User",
+        },
       create: {
         id: userId,
         email,
+        username,
         name: name || "SmartSplit User",
         password_hash: "__managed_by_supabase__",
         default_currency: "CAD",
@@ -369,6 +462,7 @@ export const syncCurrentUser = async (
       select: {
         id: true,
         name: true,
+        username: true,
         email: true,
         default_currency: true,
       },
@@ -600,25 +694,37 @@ export const updateProfile = async (
 ): Promise<void> => {
   const userId = req.userId!;
   const name = String(req.body.name ?? "").trim();
+  const username = normalizeUsername(req.body.username);
   const email = String(req.body.email ?? "").trim().toLowerCase();
   const defaultCurrency = String(req.body.default_currency ?? "").trim().toUpperCase();
 
-  if (!name || !email || !defaultCurrency) {
-    res.status(400).json({ error: "Name, email, and default currency are required" });
+  if (!name || !username || !email || !defaultCurrency) {
+    res.status(400).json({ error: "Name, username, email, and default currency are required" });
+    return;
+  }
+
+  if (!isValidUsername(username)) {
+    res.status(400).json({ error: "Username must be 3-24 characters using only lowercase letters, numbers, and underscores" });
     return;
   }
 
   try {
     const existing = await prisma.user.findFirst({
       where: {
-        email: { equals: email, mode: "insensitive" },
+        OR: [
+          { email: { equals: email, mode: "insensitive" } },
+          { username },
+        ],
         id: { not: userId },
       },
-      select: { id: true },
+      select: { id: true, email: true, username: true },
     });
 
     if (existing) {
-      res.status(409).json({ error: "That email is already in use" });
+      res.status(409).json({
+        error:
+          existing.username === username ? "That username is already in use" : "That email is already in use",
+      });
       return;
     }
 
@@ -626,12 +732,14 @@ export const updateProfile = async (
       where: { id: userId },
       data: {
         name,
+        username,
         email,
         default_currency: defaultCurrency,
       },
       select: {
         id: true,
         name: true,
+        username: true,
         email: true,
         default_currency: true,
       },

@@ -24,7 +24,7 @@ export const getBalances = async (
     // Get all members
     const members = await prisma.groupMember.findMany({
       where: { group_id: groupId },
-      include: { user: { select: { id: true, name: true, email: true } } },
+      include: { user: { select: { id: true, name: true, username: true, email: true } } },
     });
 
     // Get all expenses with splits
@@ -85,7 +85,7 @@ export const getSettlements = async (
     // Get members and expenses
     const members = await prisma.groupMember.findMany({
       where: { group_id: groupId },
-      include: { user: { select: { id: true, name: true, email: true } } },
+      include: { user: { select: { id: true, name: true, username: true, email: true } } },
     });
 
     const expenses = await prisma.expense.findMany({

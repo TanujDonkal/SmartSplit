@@ -17,7 +17,7 @@ export default function Login() {
   const state = (location.state as LocationState | null) ?? null;
 
   const [form, setForm] = useState({
-    email: '',
+    username: '',
     password: '',
   });
   const [infoMessage, setInfoMessage] = useState(state?.message ?? '');
@@ -48,8 +48,12 @@ export default function Login() {
     let signedIn = false;
 
     try {
+      const resolved = await api.resolveUsername({
+        username: form.username.trim().toLowerCase(),
+      });
+
       const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email: form.email.trim().toLowerCase(),
+        email: resolved.email,
         password: form.password,
       });
 
@@ -66,8 +70,11 @@ export default function Login() {
       signedIn = true;
       const syncedUser = await api.syncCurrentUser(
         {
-          email: data.user.email ?? form.email.trim().toLowerCase(),
+          email: data.user.email ?? resolved.email,
           name: String(data.user.user_metadata?.name ?? '').trim() || undefined,
+          username:
+            String(data.user.user_metadata?.username ?? '').trim() ||
+            form.username.trim().toLowerCase(),
         },
         accessToken,
       );
@@ -144,14 +151,13 @@ export default function Login() {
 
             <form className="space-y-5" onSubmit={handleSubmit}>
               <label className="block space-y-2">
-                <span className="text-sm font-medium text-slate-700">Email address</span>
+                <span className="text-sm font-medium text-slate-700">Username</span>
                 <input
                   required
-                  autoComplete="email"
-                  type="email"
-                  value={form.email}
+                  autoComplete="username"
+                  value={form.username}
                   onChange={(event) =>
-                    setForm((current) => ({ ...current, email: event.target.value }))
+                    setForm((current) => ({ ...current, username: event.target.value }))
                   }
                   className="form-input"
                 />

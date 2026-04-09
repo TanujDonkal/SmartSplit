@@ -7,11 +7,11 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 interface AuthContextType {
   token: string | null;
-  user: { id: string; name: string; email: string; default_currency?: string } | null;
+  user: { id: string; name: string; username: string; email: string; default_currency?: string } | null;
   isReady: boolean;
   isAuthenticated: boolean;
-  login: (token: string, user: { id: string; name: string; email: string; default_currency?: string }) => void;
-  updateUser: (user: { id: string; name: string; email: string; default_currency?: string }) => void;
+  login: (token: string, user: { id: string; name: string; username: string; email: string; default_currency?: string }) => void;
+  updateUser: (user: { id: string; name: string; username: string; email: string; default_currency?: string }) => void;
   logout: () => Promise<void>;
 }
 
@@ -22,14 +22,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthContextType['user']>(null);
   const [isReady, setIsReady] = useState(false);
 
-  const login = (token: string, user: { id: string; name: string; email: string; default_currency?: string }) => {
+  const login = (token: string, user: { id: string; name: string; username: string; email: string; default_currency?: string }) => {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
     setToken(token);
     setUser(user);
   };
 
-  const updateUser = (user: { id: string; name: string; email: string; default_currency?: string }) => {
+  const updateUser = (user: { id: string; name: string; username: string; email: string; default_currency?: string }) => {
     localStorage.setItem('user', JSON.stringify(user));
     setUser(user);
   };
@@ -57,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({
         email: session?.user.email,
         name: String(session?.user.user_metadata?.name ?? '').trim() || undefined,
+        username: String(session?.user.user_metadata?.username ?? '').trim() || undefined,
       }),
     });
 

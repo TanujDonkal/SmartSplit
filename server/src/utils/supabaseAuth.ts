@@ -31,6 +31,7 @@ export type SupabaseTokenClaims = JWTPayload & {
   email?: string;
   user_metadata?: {
     name?: string;
+    username?: string;
   };
 };
 

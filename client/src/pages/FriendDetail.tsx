@@ -507,7 +507,7 @@ export default function FriendDetail() {
               .slice(0, 2)}
           </div>
           <h1 className="mt-4 text-[2rem] font-semibold text-white">{summary.friend.name}</h1>
-          <p className="mt-1 text-sm text-white/85">{summary.friend.email}</p>
+          <p className="mt-1 text-sm text-white/85">@{summary.friend.username}</p>
         </div>
 
         <div className="space-y-4 px-5 py-5">

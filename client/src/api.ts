@@ -5,6 +5,7 @@ export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
 export interface AuthUser {
   id: string;
   name: string;
+  username: string;
   email: string;
   default_currency?: string;
 }
@@ -75,6 +76,7 @@ export interface Settlement {
 export interface Friend {
   id: string;
   name: string;
+  username: string;
   email: string;
 }
 
@@ -171,13 +173,23 @@ export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, data: unknown) =>
     request<T>(path, { method: 'POST', body: JSON.stringify(data) }),
-  login: (data: { email: string; password: string }) =>
+  login: (data: { username: string; password: string }) =>
     request<LoginResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  register: (data: { name: string; email: string; password: string }) =>
+  register: (data: { name: string; username: string; email: string; password: string }) =>
     request<RegisterResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  validateRegistration: (data: { username: string; email: string }) =>
+    request<{ ok: true }>('/auth/validate-registration', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  resolveUsername: (data: { username: string }) =>
+    request<{ email: string; username: string; name: string }>('/auth/resolve-username', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -185,18 +197,18 @@ export const api = {
     request<{ message: string }>('/auth/me', {
       method: 'DELETE',
     }),
-  updateProfile: (data: { name: string; email: string; default_currency: string }) =>
+  updateProfile: (data: { name: string; username: string; email: string; default_currency: string }) =>
     request<AuthUser>('/auth/me', {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
-  syncCurrentUser: (data?: { name?: string; email?: string }, authToken?: string) =>
+  syncCurrentUser: (data?: { name?: string; username?: string; email?: string }, authToken?: string) =>
     request<AuthUser>('/auth/me/sync', {
       method: 'POST',
       body: JSON.stringify(data ?? {}),
     }, authToken),
   getFriends: () => request<Friend[]>('/friends'),
-  addFriend: (data: { email: string }) =>
+  addFriend: (data: { username: string }) =>
     request<Friend>('/friends', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -264,7 +276,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  addGroupMember: (groupId: string, data: { email: string }) =>
+  addGroupMember: (groupId: string, data: { username: string }) =>
     request<GroupMember>(`/groups/${groupId}/members`, {
       method: 'POST',
       body: JSON.stringify(data),

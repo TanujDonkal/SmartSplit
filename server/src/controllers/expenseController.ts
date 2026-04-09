@@ -6,15 +6,15 @@ import { convertAmountToBase, normalizeCurrency, splitConvertedAmounts } from ".
 import { deleteStoredReceipt, resolveStoredReceipt } from "../utils/receiptStorage";
 
 const expenseInclude = {
-  payer: { select: { id: true, name: true, email: true, default_currency: true } },
+  payer: { select: { id: true, name: true, username: true, email: true, default_currency: true } },
   splits: {
     include: {
-      user: { select: { id: true, name: true, email: true, default_currency: true } },
+      user: { select: { id: true, name: true, username: true, email: true, default_currency: true } },
     },
   },
   comments: {
     include: {
-      author: { select: { id: true, name: true, email: true, default_currency: true } },
+      author: { select: { id: true, name: true, username: true, email: true, default_currency: true } },
     },
     orderBy: { created_at: "asc" as const },
   },

@@ -31,9 +31,10 @@ export default function Dashboard() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [groupName, setGroupName] = useState('');
-  const [friendEmail, setFriendEmail] = useState('');
+  const [friendUsername, setFriendUsername] = useState('');
   const [profileForm, setProfileForm] = useState({
     name: '',
+    username: '',
     email: '',
     default_currency: 'CAD',
   });
@@ -142,10 +143,11 @@ export default function Dashboard() {
   useEffect(() => {
     setProfileForm({
       name: user?.name ?? '',
+      username: user?.username ?? '',
       email: user?.email ?? '',
       default_currency: user?.default_currency ?? 'CAD',
     });
-  }, [user?.default_currency, user?.email, user?.name]);
+  }, [user?.default_currency, user?.email, user?.name, user?.username]);
 
   useEffect(() => {
     setQuickExpenseForm((current) => ({
@@ -207,8 +209,8 @@ export default function Dashboard() {
       return;
     }
 
-    if (!friendEmail.trim()) {
-      setError('Friend email is required');
+    if (!friendUsername.trim()) {
+      setError('Friend username is required');
       return;
     }
 
@@ -216,12 +218,12 @@ export default function Dashboard() {
     setError('');
 
     try {
-      const friend = await api.addFriend({ email: friendEmail.trim() });
+      const friend = await api.addFriend({ username: friendUsername.trim().toLowerCase() });
       setFriends((current) => {
         const exists = current.some((entry) => entry.id === friend.id);
         return exists ? current : [friend, ...current];
       });
-      setFriendEmail('');
+      setFriendUsername('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to add friend');
     } finally {
@@ -326,8 +328,8 @@ export default function Dashboard() {
       return;
     }
 
-    if (!profileForm.name.trim() || !profileForm.email.trim() || !profileForm.default_currency) {
-      setError('Name, email, and currency are required');
+    if (!profileForm.name.trim() || !profileForm.username.trim() || !profileForm.email.trim() || !profileForm.default_currency) {
+      setError('Name, username, email, and currency are required');
       return;
     }
 
@@ -336,6 +338,7 @@ export default function Dashboard() {
 
     try {
       const normalizedEmail = profileForm.email.trim().toLowerCase();
+      const normalizedUsername = profileForm.username.trim().toLowerCase();
       const trimmedName = profileForm.name.trim();
       const emailChanged = normalizedEmail !== user?.email?.trim().toLowerCase();
 
@@ -343,6 +346,7 @@ export default function Dashboard() {
         ...(emailChanged ? { email: normalizedEmail } : {}),
         data: {
           name: trimmedName,
+          username: normalizedUsername,
         },
       });
 
@@ -353,10 +357,12 @@ export default function Dashboard() {
       const syncedUser = await api.syncCurrentUser({
         email: authUpdate.user?.email?.trim().toLowerCase() ?? normalizedEmail,
         name: trimmedName,
+        username: normalizedUsername,
       });
 
       const updated = await api.updateProfile({
         name: syncedUser.name,
+        username: syncedUser.username,
         email: syncedUser.email,
         default_currency: profileForm.default_currency,
       });
@@ -566,20 +572,19 @@ export default function Dashboard() {
 
           {!token ? (
             <div className="surface-card p-5 text-sm text-slate-600">
-              Log in first, then add a signed-up friend by email.
+              Log in first, then add a signed-up friend by username.
             </div>
           ) : (
             <>
               <form className="surface-card space-y-3 p-4" onSubmit={handleAddFriend}>
                 <label className="block space-y-2">
-                  <span className="text-sm font-medium text-slate-700">Friend email</span>
+                  <span className="text-sm font-medium text-slate-700">Friend username</span>
                   <input
                     required
-                    autoComplete="email"
-                    type="email"
-                    value={friendEmail}
-                    onChange={(event) => setFriendEmail(event.target.value)}
-                    placeholder="friend@example.com"
+                    autoComplete="username"
+                    value={friendUsername}
+                    onChange={(event) => setFriendUsername(event.target.value)}
+                    placeholder="friend_username"
                     className="form-input"
                   />
                 </label>
@@ -587,13 +592,13 @@ export default function Dashboard() {
                   {isAddingFriend ? 'Adding friend...' : 'Add friend'}
                 </button>
                 <p className="text-sm text-slate-500">
-                  Use the exact email your friend used when signing up. Once added, both of you will see each other in Friends.
+                  Use the exact username your friend chose when signing up. Once added, both of you will see each other in Friends.
                 </p>
               </form>
 
               {friends.length === 0 ? (
                 <div className="surface-card p-5 text-sm text-slate-600">
-                  No friends added yet. Add a signed-up friend by email to start daily direct splits.
+                  No friends added yet. Add a signed-up friend by username to start daily direct splits.
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -609,7 +614,7 @@ export default function Dashboard() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold text-slate-900">{friend.name}</p>
-                          <p className="truncate text-sm text-slate-500">{friend.email}</p>
+                          <p className="truncate text-sm text-slate-500">@{friend.username}</p>
                           <p className="mt-1 text-sm text-[#36b5ac]">Mutual friend connection active</p>
                         </div>
                         <Link
@@ -755,6 +760,9 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-xl font-semibold text-slate-900">{user?.name ?? 'Guest'}</p>
+                <p className="text-sm font-medium text-[#36b5ac]">
+                  {user?.username ? `@${user.username}` : ''}
+                </p>
                 <p className="text-sm text-slate-500">{user?.email ?? 'Log in to manage your account'}</p>
               </div>
             </div>
@@ -764,7 +772,7 @@ export default function Dashboard() {
             <div className="mb-4">
               <h3 className="text-lg font-semibold text-slate-900">Profile settings</h3>
               <p className="mt-1 text-sm text-slate-500">
-                Update your account name, email, and default currency.
+                Update your account name, username, email, and default currency.
               </p>
             </div>
 
@@ -778,6 +786,22 @@ export default function Dashboard() {
                     setProfileForm((current) => ({
                       ...current,
                       name: event.target.value,
+                    }))
+                  }
+                  className="form-input"
+                />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Username</span>
+                <input
+                  required
+                  autoComplete="username"
+                  value={profileForm.username}
+                  onChange={(event) =>
+                    setProfileForm((current) => ({
+                      ...current,
+                      username: event.target.value,
                     }))
                   }
                   className="form-input"
@@ -955,7 +979,7 @@ export default function Dashboard() {
                     <option value="">Select a friend</option>
                     {friends.map((friend) => (
                       <option key={friend.id} value={friend.id}>
-                        {friend.name} ({friend.email})
+                        {friend.name} (@{friend.username})
                       </option>
                     ))}
                   </select>

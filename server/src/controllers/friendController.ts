@@ -1,6 +1,7 @@
 import { Response } from "express";
 import prisma from "../utils/prisma";
 import { AuthRequest } from "../middleware/auth";
+import { normalizeUsername } from "../utils/username";
 
 function toPair(userId: string, friendId: string) {
   return userId < friendId
@@ -13,20 +14,20 @@ export const addFriend = async (
   res: Response
 ): Promise<void> => {
   const userId = req.userId!;
-  const email = String(req.body.email ?? "").trim().toLowerCase();
+  const username = normalizeUsername(req.body.username);
 
-  if (!email) {
-    res.status(400).json({ error: "Friend email is required" });
+  if (!username) {
+    res.status(400).json({ error: "Friend username is required" });
     return;
   }
 
-  const friend = await prisma.user.findFirst({
-    where: { email: { equals: email, mode: "insensitive" } },
-    select: { id: true, name: true, email: true },
+  const friend = await prisma.user.findUnique({
+    where: { username },
+    select: { id: true, name: true, username: true, email: true },
   });
 
   if (!friend) {
-    res.status(404).json({ error: "User not found with that email" });
+    res.status(404).json({ error: "User not found with that username" });
     return;
   }
 
@@ -64,8 +65,8 @@ export const getFriends = async (
       OR: [{ user_a_id: userId }, { user_b_id: userId }],
     },
     include: {
-      userA: { select: { id: true, name: true, email: true } },
-      userB: { select: { id: true, name: true, email: true } },
+      userA: { select: { id: true, name: true, username: true, email: true } },
+      userB: { select: { id: true, name: true, username: true, email: true } },
     },
     orderBy: { created_at: "desc" },
   });

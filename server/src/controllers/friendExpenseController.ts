@@ -12,10 +12,10 @@ function toPair(userId: string, friendId: string) {
 }
 
 const friendExpenseInclude = {
-  payer: { select: { id: true, name: true, email: true, default_currency: true } },
+  payer: { select: { id: true, name: true, username: true, email: true, default_currency: true } },
   comments: {
     include: {
-      author: { select: { id: true, name: true, email: true, default_currency: true } },
+      author: { select: { id: true, name: true, username: true, email: true, default_currency: true } },
     },
     orderBy: { created_at: "asc" as const },
   },
@@ -25,8 +25,8 @@ async function getFriendshipOrNull(userId: string, friendId: string) {
   return prisma.friendship.findUnique({
     where: { user_a_id_user_b_id: toPair(userId, friendId) },
     include: {
-      userA: { select: { id: true, name: true, email: true, default_currency: true } },
-      userB: { select: { id: true, name: true, email: true, default_currency: true } },
+      userA: { select: { id: true, name: true, username: true, email: true, default_currency: true } },
+      userB: { select: { id: true, name: true, username: true, email: true, default_currency: true } },
     },
   });
 }
