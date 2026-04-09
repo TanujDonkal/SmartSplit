@@ -1,6 +1,9 @@
 import { createContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 interface AuthContextType {
   token: string | null;
@@ -31,6 +34,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(user);
   };
 
+  const syncSupabaseSessionUser = async (session: Session | null) => {
+    const accessToken = session?.access_token ?? null;
+
+    if (!accessToken) {
+      return;
+    }
+
+    const response = await fetch(`${API_BASE}/auth/me/sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        email: session?.user.email,
+        name: String(session?.user.user_metadata?.name ?? '').trim() || undefined,
+      }),
+    });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.error || `Sync failed (${response.status})`);
+    }
+
+    const syncedUser = (await response.json()) as AuthContextType['user'];
+    localStorage.setItem('user', JSON.stringify(syncedUser));
+    setUser(syncedUser);
+  };
+
   const logout = async () => {
     await supabase.auth.signOut();
     localStorage.removeItem('token');
@@ -45,6 +77,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (accessToken) {
         localStorage.setItem('token', accessToken);
         setToken(accessToken);
+        void syncSupabaseSessionUser(data.session).catch((error) => {
+          console.error('Auth session sync error:', error);
+        });
       }
     });
 
@@ -55,9 +90,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (accessToken) {
         localStorage.setItem('token', accessToken);
+        void syncSupabaseSessionUser(session).catch((error) => {
+          console.error('Auth state sync error:', error);
+        });
       } else {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        setUser(null);
       }
 
       setToken(accessToken);

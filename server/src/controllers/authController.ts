@@ -148,18 +148,104 @@ export const syncCurrentUser = async (
         email: { equals: email, mode: "insensitive" },
         id: { not: userId },
       },
-      select: { id: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        default_currency: true,
+      },
     });
-
-    if (existing) {
-      res.status(409).json({ error: "That email is already linked to another user" });
-      return;
-    }
 
     const current = await prisma.user.findUnique({
       where: { id: userId },
-      select: { default_currency: true, name: true },
+      select: { default_currency: true, name: true, email: true },
     });
+
+    if (existing) {
+      const migratedUser = await prisma.$transaction(async (tx) => {
+        if (!current) {
+          await tx.user.create({
+            data: {
+              id: userId,
+              email,
+              name: name || existing.name || "SmartSplit User",
+              password_hash: "__managed_by_supabase__",
+              default_currency: existing.default_currency || "CAD",
+            },
+          });
+        }
+
+        await tx.group.updateMany({
+          where: { created_by: existing.id },
+          data: { created_by: userId },
+        });
+        await tx.groupMember.updateMany({
+          where: { user_id: existing.id },
+          data: { user_id: userId },
+        });
+        await tx.expense.updateMany({
+          where: { payer_id: existing.id },
+          data: { payer_id: userId },
+        });
+        await tx.expenseSplit.updateMany({
+          where: { user_id: existing.id },
+          data: { user_id: userId },
+        });
+        await tx.friendship.updateMany({
+          where: { user_a_id: existing.id },
+          data: { user_a_id: userId },
+        });
+        await tx.friendship.updateMany({
+          where: { user_b_id: existing.id },
+          data: { user_b_id: userId },
+        });
+        await tx.friendExpense.updateMany({
+          where: { payer_id: existing.id },
+          data: { payer_id: userId },
+        });
+        await tx.expenseComment.updateMany({
+          where: { author_id: existing.id },
+          data: { author_id: userId },
+        });
+        await tx.friendExpenseComment.updateMany({
+          where: { author_id: existing.id },
+          data: { author_id: userId },
+        });
+        await tx.passwordResetOtp.updateMany({
+          where: { user_id: existing.id },
+          data: { user_id: userId },
+        });
+
+        await tx.user.delete({
+          where: { id: existing.id },
+        });
+
+        return tx.user.upsert({
+          where: { id: userId },
+          update: {
+            email,
+            name: name || current?.name || existing.name || "SmartSplit User",
+            default_currency: current?.default_currency || existing.default_currency || "CAD",
+          },
+          create: {
+            id: userId,
+            email,
+            name: name || existing.name || "SmartSplit User",
+            password_hash: "__managed_by_supabase__",
+            default_currency: existing.default_currency || "CAD",
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            default_currency: true,
+          },
+        });
+      });
+
+      res.json(migratedUser);
+      return;
+    }
 
     const user = await prisma.user.upsert({
       where: { id: userId },
