@@ -142,8 +142,12 @@ export interface AssistantChatMessage {
   text: string;
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = localStorage.getItem('token');
+async function request<T>(
+  path: string,
+  options: RequestInit = {},
+  authToken?: string,
+): Promise<T> {
+  const token = authToken ?? localStorage.getItem('token');
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...((options.headers as Record<string, string>) || {}),
@@ -196,6 +200,11 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
+  syncCurrentUser: (data?: { name?: string; email?: string }, authToken?: string) =>
+    request<AuthUser>('/auth/me/sync', {
+      method: 'POST',
+      body: JSON.stringify(data ?? {}),
+    }, authToken),
   getFriends: () => request<Friend[]>('/friends'),
   addFriend: (data: { email: string }) =>
     request<Friend>('/friends', {

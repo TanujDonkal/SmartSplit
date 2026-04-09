@@ -20,8 +20,8 @@ export default function Layout() {
         ? 'friends'
       : new URLSearchParams(location.search).get('tab') ?? 'groups';
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
@@ -44,7 +44,7 @@ export default function Layout() {
 
             {user ? (
               <button
-                onClick={handleLogout}
+                onClick={() => void handleLogout()}
                 className="rounded-full border border-[#d6d7d2] bg-white px-4 py-2 text-sm font-semibold text-slate-700"
               >
                 Log out

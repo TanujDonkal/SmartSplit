@@ -1,62 +1,37 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { api } from '../api';
+import { Link } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 
 export default function ForgotPassword() {
-  const navigate = useNavigate();
-  const [step, setStep] = useState<'request' | 'reset'>('request');
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleRequestOtp(event: FormEvent<HTMLFormElement>) {
+  async function handleRequestReset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
     setMessage('');
     setIsSubmitting(true);
 
     try {
-      const response = await api.requestPasswordResetOtp({
-        email: email.trim().toLowerCase(),
-      });
-      setMessage(response.message);
-      setStep('reset');
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        email.trim().toLowerCase(),
+        {
+          redirectTo: `${window.location.origin}/update-password`,
+        },
+      );
+
+      if (resetError) {
+        throw resetError;
+      }
+
+      setMessage(
+        'If that account exists, a password reset link has been sent to your email.',
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to send OTP');
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  async function handleResetPassword(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError('');
-    setMessage('');
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const response = await api.resetPasswordWithOtp({
-        email: email.trim().toLowerCase(),
-        otp: otp.trim(),
-        password,
-      });
-      navigate('/login', {
-        replace: true,
-        state: { message: response.message },
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to reset password');
+      setError(err instanceof Error ? err.message : 'Unable to send reset email');
     } finally {
       setIsSubmitting(false);
     }
@@ -78,9 +53,7 @@ export default function ForgotPassword() {
         />
         <h1 className="mb-3 text-4xl font-semibold text-slate-900">Forgot password</h1>
         <p className="mb-8 text-sm text-slate-500">
-          {step === 'request'
-            ? 'Enter your registered email to receive an OTP.'
-            : 'Enter the OTP from your email and choose a new password.'}
+          Enter your registered email and we will send you a secure reset link.
         </p>
 
         {message ? (
@@ -95,104 +68,27 @@ export default function ForgotPassword() {
           </div>
         ) : null}
 
-        {step === 'request' ? (
-          <form className="space-y-5" onSubmit={handleRequestOtp}>
-            <label className="block space-y-2">
-              <span className="text-sm font-medium text-slate-700">Registered email</span>
-              <input
-                required
-                autoComplete="email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="form-input"
-              />
-            </label>
+        <form className="space-y-5" onSubmit={handleRequestReset}>
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-slate-700">Registered email</span>
+            <input
+              required
+              autoComplete="email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="form-input"
+            />
+          </label>
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="primary-button w-full px-4 py-4 text-lg"
-            >
-              {isSubmitting ? 'Sending OTP...' : 'Send OTP'}
-            </button>
-          </form>
-        ) : (
-          <form className="space-y-5" onSubmit={handleResetPassword}>
-            <label className="block space-y-2">
-              <span className="text-sm font-medium text-slate-700">Registered email</span>
-              <input
-                required
-                autoComplete="email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="form-input"
-              />
-            </label>
-
-            <label className="block space-y-2">
-              <span className="text-sm font-medium text-slate-700">OTP from email</span>
-              <input
-                required
-                inputMode="numeric"
-                value={otp}
-                onChange={(event) => setOtp(event.target.value)}
-                placeholder="6-digit code"
-                className="form-input"
-              />
-            </label>
-
-            <label className="block space-y-2">
-              <span className="text-sm font-medium text-slate-700">New password</span>
-              <input
-                required
-                autoComplete="new-password"
-                minLength={6}
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="form-input"
-              />
-            </label>
-
-            <label className="block space-y-2">
-              <span className="text-sm font-medium text-slate-700">Confirm new password</span>
-              <input
-                required
-                autoComplete="new-password"
-                minLength={6}
-                type="password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                className="form-input"
-              />
-            </label>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="primary-button w-full px-4 py-4 text-lg"
-            >
-              {isSubmitting ? 'Resetting password...' : 'Reset password'}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setStep('request');
-                setOtp('');
-                setPassword('');
-                setConfirmPassword('');
-                setError('');
-                setMessage('');
-              }}
-              className="outline-button w-full px-4 py-3"
-            >
-              Request a new OTP
-            </button>
-          </form>
-        )}
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="primary-button w-full px-4 py-4 text-lg"
+          >
+            {isSubmitting ? 'Sending reset link...' : 'Send reset link'}
+          </button>
+        </form>
       </div>
     </div>
   );

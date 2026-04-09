@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, SUPPORTED_CURRENCIES } from '../api';
 import type { AssistantChatMessage, Expense, Friend, Group, SupportedCurrency } from '../api';
 import { useAuth } from '../context/useAuth';
+import { supabase } from '../lib/supabase';
 
 type DashboardExpense = Expense & { groupName: string };
 type ChatMessage = {
@@ -289,7 +290,7 @@ export default function Dashboard() {
 
     try {
       await api.deleteAccount();
-      logout();
+      await logout();
       navigate('/', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to delete account');
@@ -315,12 +316,34 @@ export default function Dashboard() {
     setError('');
 
     try {
+      const normalizedEmail = profileForm.email.trim().toLowerCase();
+      const trimmedName = profileForm.name.trim();
+      const emailChanged = normalizedEmail !== user?.email?.trim().toLowerCase();
+
+      const { data: authUpdate, error: authError } = await supabase.auth.updateUser({
+        ...(emailChanged ? { email: normalizedEmail } : {}),
+        data: {
+          name: trimmedName,
+        },
+      });
+
+      if (authError) {
+        throw authError;
+      }
+
       const updated = await api.updateProfile({
-        name: profileForm.name.trim(),
-        email: profileForm.email.trim().toLowerCase(),
+        name: trimmedName,
+        email: authUpdate.user?.email?.trim().toLowerCase() ?? normalizedEmail,
         default_currency: profileForm.default_currency,
       });
+
       updateUser(updated);
+
+      if (emailChanged && (authUpdate.user?.email?.trim().toLowerCase() ?? '') !== normalizedEmail) {
+        setError(
+          'Profile saved. Check your inbox to confirm the new email address in Supabase, then save again if needed.',
+        );
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to update profile');
     } finally {

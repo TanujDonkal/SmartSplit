@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import prisma from "../utils/prisma";
 import { AuthRequest } from "../middleware/auth";
 import { sendPasswordResetOtpEmail } from "../utils/mailer";
+import { getSupabaseAdminClient } from "../utils/supabaseAdmin";
 
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 
@@ -125,6 +126,66 @@ export const requestPasswordResetOtp = async (
       email,
     });
     res.status(500).json({ error: "Failed to send OTP email" });
+  }
+};
+
+export const syncCurrentUser = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
+  const userId = req.userId!;
+  const email = String(req.userEmail ?? req.body.email ?? "").trim().toLowerCase();
+  const name = String(req.body.name ?? req.userName ?? "").trim();
+
+  if (!userId || !email) {
+    res.status(400).json({ error: "Authenticated user id and email are required" });
+    return;
+  }
+
+  try {
+    const existing = await prisma.user.findFirst({
+      where: {
+        email: { equals: email, mode: "insensitive" },
+        id: { not: userId },
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      res.status(409).json({ error: "That email is already linked to another user" });
+      return;
+    }
+
+    const current = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { default_currency: true, name: true },
+    });
+
+    const user = await prisma.user.upsert({
+      where: { id: userId },
+      update: {
+        email,
+        name: name || current?.name || "SmartSplit User",
+      },
+      create: {
+        id: userId,
+        email,
+        name: name || "SmartSplit User",
+        password_hash: "__managed_by_supabase__",
+        default_currency: "CAD",
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        default_currency: true,
+      },
+    });
+
+    res.json(user);
+  } catch (error) {
+    console.error("Sync current user error:", error);
+    res.status(500).json({ error: "Failed to sync authenticated user" });
   }
 };
 
@@ -316,6 +377,23 @@ export const deleteAccount = async (
         where: { id: userId },
       });
     });
+
+    try {
+      const supabaseAdmin = getSupabaseAdminClient();
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+
+      if (error) {
+        console.error("Delete Supabase auth user error:", {
+          message: error.message,
+          userId,
+        });
+      }
+    } catch (error) {
+      console.error("Supabase admin delete error:", {
+        message: error instanceof Error ? error.message : "Unknown Supabase delete error",
+        userId,
+      });
+    }
 
     res.json({ message: "Account deleted successfully" });
   } catch (error) {

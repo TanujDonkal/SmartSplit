@@ -6,8 +6,8 @@ SmartSplit is a full-stack expense sharing application inspired by Splitwise. Th
 
 ## Current Features
 
-- User registration and login
-- Forgot password with OTP reset
+- User registration and login through Supabase Auth
+- Forgot password with Supabase reset link flow
 - Profile editing and account deletion
 - Friend-by-email relationships
 - Direct friend expenses and settle-up workflow
@@ -32,6 +32,7 @@ Backend:
 - Express
 - Prisma
 - PostgreSQL
+- Supabase Auth token verification
 
 ## Project Structure
 

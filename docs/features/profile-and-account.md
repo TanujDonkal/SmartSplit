@@ -8,7 +8,8 @@ Profile and account management lets users maintain their personal information an
 
 1. User opens the Account tab on the dashboard.
 2. User updates name, email, or default currency.
-3. The backend saves the profile changes and the frontend updates the active session.
+3. The frontend updates Supabase Auth first for name and email changes.
+4. The backend saves the SmartSplit profile changes and the frontend updates the active session.
 4. User can also choose to permanently delete the account after confirmation.
 
 ## Frontend Files
@@ -16,6 +17,7 @@ Profile and account management lets users maintain their personal information an
 - `client/src/pages/Dashboard.tsx`
 - `client/src/context/AuthContext.tsx`
 - `client/src/api.ts`
+- `client/src/lib/supabase.ts`
 
 ## Backend Files
 
@@ -36,3 +38,4 @@ Profile and account management lets users maintain their personal information an
 - Default currency is stored on the user profile and reused by expense forms.
 - Account deletion is initiated from the frontend with confirmation prompts.
 - The frontend updates the stored user object after profile changes.
+- Account deletion also attempts to remove the linked Supabase Auth user through the backend service-role client.

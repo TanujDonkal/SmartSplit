@@ -2,40 +2,37 @@
 
 ## Purpose
 
-Password recovery allows a user to reset their password by receiving an OTP at their registered email address.
+Password recovery allows a user to reset their password through a Supabase-authenticated reset link flow.
 
 ## User Workflow
 
 1. User opens the forgot password page.
 2. User enters their registered email address.
-3. The backend generates an OTP, stores its hash, and sends the OTP by email.
-4. User enters the OTP and a new password.
-5. The backend verifies the OTP and updates the password.
+3. The frontend asks Supabase Auth to send a reset email with a secure recovery link.
+4. User opens the link from the email and returns to the SmartSplit update password page.
+5. The frontend updates the password through Supabase Auth.
 
 ## Frontend Files
 
 - `client/src/pages/ForgotPassword.tsx`
+- `client/src/pages/UpdatePassword.tsx`
 - `client/src/pages/Login.tsx`
-- `client/src/api.ts`
+- `client/src/lib/supabase.ts`
 
 ## Backend Files
 
-- `server/src/routes/auth.ts`
-- `server/src/controllers/authController.ts`
-- `server/src/utils/mailer.ts`
+- None required for the current reset-link flow
 
 ## Database Models
 
-- `PasswordResetOtp`
-- `User`
+- Supabase Auth user records
 
 ## Main Routes
 
-- `POST /api/auth/forgot-password/request`
-- `POST /api/auth/forgot-password/reset`
+- No custom backend route is required for the current reset-link flow
 
 ## Implementation Notes
 
-- OTP values are stored as hashes rather than raw codes.
-- Email delivery depends on SMTP environment variables in the deployed backend.
-- OTPs have expiration and one-time-use behavior.
+- Supabase handles secure recovery token creation and email delivery.
+- The frontend redirect target must be allowed in Supabase Auth redirect URL settings.
+- The update password screen depends on the recovery session created from the reset link.
