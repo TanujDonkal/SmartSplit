@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../context/useAuth';
+import { supabase } from '../lib/supabase';
 
 interface LocationState {
   message?: string;
@@ -27,8 +28,27 @@ export default function Login() {
     setIsSubmitting(true);
 
     try {
-      const response = await api.login(form);
-      login(response.token, response.user);
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+      });
+
+      if (authError) {
+        throw authError;
+      }
+
+      const accessToken = data.session?.access_token;
+
+      if (!accessToken) {
+        throw new Error('No authenticated session was returned');
+      }
+
+      const syncedUser = await api.syncCurrentUser({
+        email: data.user.email ?? form.email.trim().toLowerCase(),
+        name: String(data.user.user_metadata?.name ?? '').trim() || undefined,
+      }, accessToken);
+
+      login(accessToken, syncedUser);
       navigate('/dashboard?tab=friends');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to sign in');

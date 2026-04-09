@@ -4,6 +4,7 @@
 
 ### What is connected
 - The React frontend is connected to the Express backend through `/api`
+- Supabase Auth is used for sign up, sign in, password reset, and password updates
 - Auth, groups, expenses, balances, and settlements all have matching frontend screens and backend routes
 - Frontend production build passes
 - Backend TypeScript build passes
@@ -47,7 +48,8 @@ Expected database settings from `server/.env.example`:
 The server expects:
 - `PORT`
 - `DATABASE_URL`
-- `JWT_SECRET`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
 
 The repo already contains:
 - `server/.env`
@@ -96,12 +98,17 @@ Expected app URL:
 
 The Vite proxy forwards frontend `/api` calls to the backend.
 
+Required frontend environment values:
+- `VITE_API_BASE_URL`
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
 ### 6. End-to-End Manual Test
 
 After both apps are running:
 
-1. Register User A
-2. Register User B
+1. Register User A through Supabase Auth
+2. Register User B through Supabase Auth
 3. Log in as User A
 4. Create a group
 5. Add User B by email
@@ -127,7 +134,7 @@ The following runtime checks did not pass:
 Yes, at the code and route level.
 
 ### Is the app fully working right now on this machine?
-Not yet, because the database is not currently available.
+Not yet, because the database and required Supabase environment values are not currently available in this workspace.
 
 ### Can you use it as an expense split app with your friend right now?
 Not yet for real shared use. First get PostgreSQL running, apply migrations, start both apps, and make the backend accessible to both users.

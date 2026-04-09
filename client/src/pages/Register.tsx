@@ -3,9 +3,10 @@ import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../context/useAuth';
+import { supabase } from '../lib/supabase';
 
 export default function Register() {
-  const { token } = useAuth();
+  const { token, login } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({
     name: '',
@@ -28,14 +29,36 @@ export default function Register() {
     setIsSubmitting(true);
 
     try {
-      await api.register({
-        name: form.name.trim(),
-        email: form.email.trim(),
+      const { data, error: authError } = await supabase.auth.signUp({
+        email: form.email.trim().toLowerCase(),
         password: form.password,
+        options: {
+          data: {
+            name: form.name.trim(),
+          },
+        },
       });
+
+      if (authError) {
+        throw authError;
+      }
+
+      if (data.session?.access_token && data.user?.email) {
+        const syncedUser = await api.syncCurrentUser({
+          email: data.user.email,
+          name: form.name.trim(),
+        }, data.session.access_token);
+        login(data.session.access_token, syncedUser);
+        navigate('/dashboard?tab=friends', { replace: true });
+        return;
+      }
+
       navigate('/login', {
         replace: true,
-        state: { message: 'Account created. You can log in now.' },
+        state: {
+          message:
+            'Account created. Check your email to confirm your account, then log in.',
+        },
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create account');
