@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, SUPPORTED_CURRENCIES } from '../api';
 import type { AssistantChatMessage, Expense, Friend, Group, SupportedCurrency } from '../api';
+import NoticeBanner from '../components/NoticeBanner';
 import { useAuth } from '../context/useAuth';
 import { supabase } from '../lib/supabase';
 
@@ -37,6 +38,7 @@ export default function Dashboard() {
     default_currency: 'CAD',
   });
   const [showAiChat, setShowAiChat] = useState(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [aiInput, setAiInput] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
@@ -151,6 +153,15 @@ export default function Dashboard() {
       currency: (user?.default_currency as SupportedCurrency | undefined) ?? 'CAD',
     }));
   }, [user?.default_currency]);
+
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setError(''), 7000);
+    return () => window.clearTimeout(timer);
+  }, [error]);
 
   async function handleCreateGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -269,28 +280,13 @@ export default function Dashboard() {
   }
 
   async function handleDeleteAccount() {
-    const confirmed = window.confirm(
-      'Delete account? All your SmartSplit data will be deleted and this cannot be undone.',
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    const secondConfirm = window.confirm(
-      'Please confirm again: your account and all related data will be permanently deleted.',
-    );
-
-    if (!secondConfirm) {
-      return;
-    }
-
     setIsDeletingAccount(true);
     setError('');
 
     try {
       await api.deleteAccount();
       await logout();
+      setShowDeleteAccountModal(false);
       navigate('/', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to delete account');
@@ -522,9 +518,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-5 pb-6">
       {error ? (
-        <div className="rounded-2xl border border-[#f1c5b8] bg-[#fff1ec] px-4 py-3 text-sm text-[#bf5b37]">
-          {error}
-        </div>
+        <NoticeBanner tone="error" message={error} onClose={() => setError('')} />
       ) : null}
 
       <section className="rounded-[1.8rem] bg-white px-5 py-5 shadow-[0_12px_30px_rgba(31,41,55,0.05)]">
@@ -852,7 +846,7 @@ export default function Dashboard() {
               <button
                 type="button"
                 disabled={isDeletingAccount}
-                onClick={() => void handleDeleteAccount()}
+                onClick={() => setShowDeleteAccountModal(true)}
                 className="mt-4 w-full rounded-xl bg-[#d96543] px-4 py-3 text-sm font-semibold text-white"
               >
                 {isDeletingAccount ? 'Deleting account...' : 'Delete account'}
@@ -1088,9 +1082,55 @@ export default function Dashboard() {
                     {isParsingQuickReceipt ? 'Parsing receipt...' : 'Parse receipt with AI'}
                   </button>
                 </div>
-              ) : null}
+      ) : null}
 
+      {showDeleteAccountModal ? (
+        <div className="fixed inset-0 z-50 bg-slate-900/45 px-4 py-6 backdrop-blur-sm">
+          <div className="mx-auto w-full max-w-[28rem] rounded-[1.8rem] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.22)]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900">Delete account?</h3>
+                <p className="mt-2 text-sm text-slate-600">
+                  Your SmartSplit account, friendships, groups, expenses, and related data will be permanently deleted. This action cannot be undone.
+                </p>
+              </div>
               <button
+                type="button"
+                onClick={() => setShowDeleteAccountModal(false)}
+                className="grid h-10 w-10 place-items-center rounded-full border border-[#d8ddd9] bg-white text-lg text-slate-500"
+                aria-label="Close delete account dialog"
+              >
+                x
+              </button>
+            </div>
+
+            <div className="mt-5 rounded-2xl bg-[#fff4ef] px-4 py-3 text-sm text-[#b25537]">
+              Continue only if you are sure. You will be logged out immediately after deletion.
+            </div>
+
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeleteAccountModal(false)}
+                className="outline-button flex-1 px-4 py-3 text-sm"
+                disabled={isDeletingAccount}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDeleteAccount()}
+                className="flex-1 rounded-xl bg-[#d96543] px-4 py-3 text-sm font-semibold text-white"
+                disabled={isDeletingAccount}
+              >
+                {isDeletingAccount ? 'Deleting...' : 'Yes, delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <button
                 type="submit"
                 disabled={isSavingQuickExpense}
                 className="primary-button w-full px-4 py-4 text-lg"

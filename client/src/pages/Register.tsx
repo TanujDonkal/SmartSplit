@@ -2,6 +2,7 @@ import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { api } from '../api';
+import NoticeBanner from '../components/NoticeBanner';
 import { useAuth } from '../context/useAuth';
 import { supabase } from '../lib/supabase';
 
@@ -99,9 +100,7 @@ export default function Register() {
         ) : null}
 
         {error ? (
-          <div className="mb-4 rounded-2xl border border-[#f1c5b8] bg-[#fff1ec] px-4 py-3 text-sm text-[#bf5b37]">
-            {error}
-          </div>
+          <NoticeBanner tone="error" message={error} onClose={() => setError('')} />
         ) : null}
 
         <form className="space-y-5" onSubmit={handleSubmit}>

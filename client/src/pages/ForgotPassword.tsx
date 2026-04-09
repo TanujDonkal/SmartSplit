@@ -1,16 +1,57 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import NoticeBanner from '../components/NoticeBanner';
 import { supabase } from '../lib/supabase';
+
+const RESET_COOLDOWN_SECONDS = 60;
+const RESET_COOLDOWN_KEY = 'forgot-password-cooldown-until';
+
+function getRateLimitMessage(error: unknown) {
+  const rawMessage = error instanceof Error ? error.message : 'Unable to send reset email';
+  const normalized = rawMessage.toLowerCase();
+
+  if (normalized.includes('rate limit') || normalized.includes('over_email_send_rate_limit')) {
+    return `A reset email was sent recently. Supabase free projects usually allow one reset request per 60 seconds, so please wait a minute and try again.`;
+  }
+
+  return rawMessage;
+}
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+
+  useEffect(() => {
+    const updateCooldown = () => {
+      const storedUntil = Number(localStorage.getItem(RESET_COOLDOWN_KEY) ?? '0');
+      const secondsLeft = Math.max(0, Math.ceil((storedUntil - Date.now()) / 1000));
+      setCooldownRemaining(secondsLeft);
+    };
+
+    updateCooldown();
+    const timer = window.setInterval(updateCooldown, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!message) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setMessage(''), 6000);
+    return () => window.clearTimeout(timer);
+  }, [message]);
 
   async function handleRequestReset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSubmitting || cooldownRemaining > 0) {
+      return;
+    }
+
     setError('');
     setMessage('');
     setIsSubmitting(true);
@@ -27,11 +68,24 @@ export default function ForgotPassword() {
         throw resetError;
       }
 
+      localStorage.setItem(
+        RESET_COOLDOWN_KEY,
+        String(Date.now() + RESET_COOLDOWN_SECONDS * 1000),
+      );
+      setCooldownRemaining(RESET_COOLDOWN_SECONDS);
       setMessage(
-        'If that account exists, a password reset link has been sent to your email.',
+        'If that account exists, a password reset link has been sent to your email. Please wait a minute before requesting another one.',
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to send reset email');
+      const nextMessage = getRateLimitMessage(err);
+      if (nextMessage !== (err instanceof Error ? err.message : '')) {
+        localStorage.setItem(
+          RESET_COOLDOWN_KEY,
+          String(Date.now() + RESET_COOLDOWN_SECONDS * 1000),
+        );
+        setCooldownRemaining(RESET_COOLDOWN_SECONDS);
+      }
+      setError(nextMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -55,17 +109,23 @@ export default function ForgotPassword() {
         <p className="mb-8 text-sm text-slate-500">
           Enter your registered email and we will send you a secure reset link.
         </p>
+        <p className="-mt-5 mb-6 text-xs text-slate-400">
+          To stay inside the Supabase free plan email limit, reset requests are cooled down for 60 seconds.
+        </p>
 
         {message ? (
-          <div className="mb-4 rounded-2xl border border-[#c6e7dd] bg-[#eef9f5] px-4 py-3 text-sm text-[#116e54]">
-            {message}
-          </div>
+          <NoticeBanner tone="success" message={message} onClose={() => setMessage('')} />
         ) : null}
 
         {error ? (
-          <div className="mb-4 rounded-2xl border border-[#f1c5b8] bg-[#fff1ec] px-4 py-3 text-sm text-[#bf5b37]">
-            {error}
-          </div>
+          <NoticeBanner tone="error" message={error} onClose={() => setError('')} />
+        ) : null}
+
+        {cooldownRemaining > 0 ? (
+          <NoticeBanner
+            tone="info"
+            message={`You can request another reset email in ${cooldownRemaining}s.`}
+          />
         ) : null}
 
         <form className="space-y-5" onSubmit={handleRequestReset}>
@@ -83,10 +143,14 @@ export default function ForgotPassword() {
 
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || cooldownRemaining > 0}
             className="primary-button w-full px-4 py-4 text-lg"
           >
-            {isSubmitting ? 'Sending reset link...' : 'Send reset link'}
+            {isSubmitting
+              ? 'Sending reset link...'
+              : cooldownRemaining > 0
+                ? `Wait ${cooldownRemaining}s`
+                : 'Send reset link'}
           </button>
         </form>
       </div>
