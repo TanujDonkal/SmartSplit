@@ -78,101 +78,128 @@ export default function Register() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-[30rem] flex-col px-4 py-6">
-      <div className="mb-8 flex items-center">
-        <Link to="/" className="text-3xl leading-none text-slate-700">
-          &lsaquo;
-        </Link>
-      </div>
-
-      <div className="mx-auto w-full max-w-md">
-        <img
-          src="/smartsplit-logo.png"
-          alt="SmartSplit"
-          className="mx-auto mb-10 h-auto w-full max-w-[14rem] object-contain"
-        />
-        <h1 className="mb-8 text-4xl font-semibold text-slate-900">Sign up</h1>
-
-        {!isReady ? (
-          <div className="mb-4 rounded-2xl border border-[#e8e8e0] bg-white px-4 py-3 text-sm text-slate-500">
-            Checking your session...
+    <div className="auth-page">
+      <div className="auth-shell">
+        <section className="auth-brand-panel">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#36b5ac]">
+              Join SmartSplit
+            </p>
+            <h1 className="mt-5 text-4xl font-semibold leading-tight text-slate-900">
+              Create one account for direct splits, group trips, receipts, and account control.
+            </h1>
+            <p className="mt-5 max-w-xl text-base leading-7 text-slate-600">
+              The same account gives you friend balances, group expenses, AI-assisted receipts, and clean account management across all screen sizes.
+            </p>
           </div>
-        ) : null}
 
-        {error ? (
-          <NoticeBanner tone="error" message={error} onClose={() => setError('')} />
-        ) : null}
-
-        <form className="space-y-5" onSubmit={handleSubmit}>
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Full name</span>
-            <input
-              required
-              autoComplete="name"
-              value={form.name}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, name: event.target.value }))
-              }
-              className="form-input"
+          <div className="space-y-4">
+            <img
+              src="/smartsplit-logo.png"
+              alt="SmartSplit"
+              className="h-auto w-full max-w-[18rem] object-contain"
             />
-          </label>
+            <div className="rounded-[1.5rem] bg-white/85 px-4 py-4 text-sm text-slate-500">
+              Sign up once, then move between desktop, tablet, and mobile without changing the flow.
+            </div>
+          </div>
+        </section>
 
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Email address</span>
-            <input
-              required
-              autoComplete="email"
-              type="email"
-              value={form.email}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, email: event.target.value }))
-              }
-              className="form-input"
+        <div className="auth-card auth-form-panel px-4 py-6 md:px-0 md:py-0">
+          <div className="auth-back-link">
+            <Link to="/" className="text-3xl leading-none text-slate-700">
+              &lsaquo;
+            </Link>
+          </div>
+
+          <div className="mx-auto w-full max-w-md">
+            <img
+              src="/smartsplit-logo.png"
+              alt="SmartSplit"
+              className="mx-auto mb-10 h-auto w-full max-w-[14rem] object-contain md:mx-0"
             />
-          </label>
+            <h1 className="mb-8 text-4xl font-semibold text-slate-900">Sign up</h1>
 
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Password</span>
-            <input
-              required
-              autoComplete="new-password"
-              minLength={6}
-              type="password"
-              value={form.password}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, password: event.target.value }))
-              }
-              className="form-input"
-            />
-            <p className="text-sm text-slate-500">Minimum 6 characters</p>
-          </label>
+            {!isReady ? (
+              <NoticeBanner tone="info" message="Checking your session..." />
+            ) : null}
 
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Confirm password</span>
-            <input
-              required
-              autoComplete="new-password"
-              minLength={6}
-              type="password"
-              value={form.confirmPassword}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  confirmPassword: event.target.value,
-                }))
-              }
-              className="form-input"
-            />
-          </label>
+            {error ? (
+              <NoticeBanner tone="error" message={error} onClose={() => setError('')} />
+            ) : null}
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="primary-button w-full px-4 py-4 text-lg"
-          >
-            {isSubmitting ? 'Creating account...' : 'Next'}
-          </button>
-        </form>
+            <form className="space-y-5" onSubmit={handleSubmit}>
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Full name</span>
+                <input
+                  required
+                  autoComplete="name"
+                  value={form.name}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, name: event.target.value }))
+                  }
+                  className="form-input"
+                />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Email address</span>
+                <input
+                  required
+                  autoComplete="email"
+                  type="email"
+                  value={form.email}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, email: event.target.value }))
+                  }
+                  className="form-input"
+                />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Password</span>
+                <input
+                  required
+                  autoComplete="new-password"
+                  minLength={6}
+                  type="password"
+                  value={form.password}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, password: event.target.value }))
+                  }
+                  className="form-input"
+                />
+                <p className="text-sm text-slate-500">Minimum 6 characters</p>
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Confirm password</span>
+                <input
+                  required
+                  autoComplete="new-password"
+                  minLength={6}
+                  type="password"
+                  value={form.confirmPassword}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      confirmPassword: event.target.value,
+                    }))
+                  }
+                  className="form-input"
+                />
+              </label>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="primary-button w-full px-4 py-4 text-lg"
+              >
+                {isSubmitting ? 'Creating account...' : 'Next'}
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -82,79 +82,106 @@ export default function Login() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-[30rem] flex-col px-4 py-6">
-      <div className="mb-8 flex items-center">
-        <Link to="/" className="text-3xl leading-none text-slate-700">
-          &lsaquo;
-        </Link>
-      </div>
-
-      <div className="mx-auto w-full max-w-md">
-        <img
-          src="/smartsplit-logo.png"
-          alt="SmartSplit"
-          className="mx-auto mb-10 h-auto w-full max-w-[14rem] object-contain"
-        />
-        <h1 className="mb-8 text-4xl font-semibold text-slate-900">Log in</h1>
-
-        {!isReady ? (
-          <div className="mb-4 rounded-2xl border border-[#e8e8e0] bg-white px-4 py-3 text-sm text-slate-500">
-            Checking your session...
+    <div className="auth-page">
+      <div className="auth-shell">
+        <section className="auth-brand-panel">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#36b5ac]">
+              Welcome Back
+            </p>
+            <h1 className="mt-5 text-4xl font-semibold leading-tight text-slate-900">
+              Pick up your friends, groups, and balances exactly where you left them.
+            </h1>
+            <p className="mt-5 max-w-xl text-base leading-7 text-slate-600">
+              SmartSplit keeps everyday direct splits and group workflows in one clean space, whether you are logging in from mobile, tablet, or desktop.
+            </p>
           </div>
-        ) : null}
 
-        {infoMessage ? (
-          <NoticeBanner tone="success" message={infoMessage} onClose={() => setInfoMessage('')} />
-        ) : null}
-
-        {error ? (
-          <NoticeBanner tone="error" message={error} onClose={() => setError('')} />
-        ) : null}
-
-        <form className="space-y-5" onSubmit={handleSubmit}>
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Email address</span>
-            <input
-              required
-              autoComplete="email"
-              type="email"
-              value={form.email}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, email: event.target.value }))
-              }
-              className="form-input"
+          <div>
+            <img
+              src="/smartsplit-logo.png"
+              alt="SmartSplit"
+              className="h-auto w-full max-w-[18rem] object-contain"
             />
-          </label>
+            <div className="mt-6 rounded-[1.5rem] bg-white/85 px-4 py-4 text-sm text-slate-500">
+              Friends, groups, receipts, and settlements stay synced across screen sizes.
+            </div>
+          </div>
+        </section>
 
-          <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Password</span>
-            <input
-              required
-              autoComplete="current-password"
-              minLength={6}
-              type="password"
-              value={form.password}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, password: event.target.value }))
-              }
-              className="form-input"
+        <div className="auth-card auth-form-panel px-4 py-6 md:px-0 md:py-0">
+          <div className="auth-back-link">
+            <Link to="/" className="text-3xl leading-none text-slate-700">
+              &lsaquo;
+            </Link>
+          </div>
+
+          <div className="mx-auto w-full max-w-md">
+            <img
+              src="/smartsplit-logo.png"
+              alt="SmartSplit"
+              className="mx-auto mb-10 h-auto w-full max-w-[14rem] object-contain md:mx-0"
             />
-          </label>
+            <h1 className="mb-8 text-4xl font-semibold text-slate-900">Log in</h1>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="primary-button w-full px-4 py-4 text-lg"
-          >
-            {isSubmitting ? 'Logging in...' : 'Log in'}
-          </button>
-        </form>
+            {!isReady ? (
+              <NoticeBanner tone="info" message="Checking your session..." />
+            ) : null}
 
-        <p className="mt-6 text-center text-sm font-medium text-[#2b938c]">
-          <Link to="/forgot-password" className="underline underline-offset-2">
-            Forgot your password?
-          </Link>
-        </p>
+            {infoMessage ? (
+              <NoticeBanner tone="success" message={infoMessage} onClose={() => setInfoMessage('')} />
+            ) : null}
+
+            {error ? (
+              <NoticeBanner tone="error" message={error} onClose={() => setError('')} />
+            ) : null}
+
+            <form className="space-y-5" onSubmit={handleSubmit}>
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Email address</span>
+                <input
+                  required
+                  autoComplete="email"
+                  type="email"
+                  value={form.email}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, email: event.target.value }))
+                  }
+                  className="form-input"
+                />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Password</span>
+                <input
+                  required
+                  autoComplete="current-password"
+                  minLength={6}
+                  type="password"
+                  value={form.password}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, password: event.target.value }))
+                  }
+                  className="form-input"
+                />
+              </label>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="primary-button w-full px-4 py-4 text-lg"
+              >
+                {isSubmitting ? 'Logging in...' : 'Log in'}
+              </button>
+            </form>
+
+            <p className="mt-6 text-center text-sm font-medium text-[#2b938c] md:text-left">
+              <Link to="/forgot-password" className="underline underline-offset-2">
+                Forgot your password?
+              </Link>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
