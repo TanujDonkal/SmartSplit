@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 
 export default function Home() {
   return (
-    <div className="px-4 py-6 md:px-6 md:py-8 lg:min-h-screen lg:overflow-hidden">
+    <div className="px-4 py-6 md:px-6 md:py-8 lg:min-h-screen">
       <div className="mx-auto grid w-full max-w-6xl gap-6 lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[minmax(0,1.1fr)_minmax(22rem,26rem)]">
         <section className="flex flex-col justify-between rounded-[2rem] border border-[#d6d7d2]/80 bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(241,248,247,0.92))] px-6 py-8 shadow-[0_18px_55px_rgba(31,41,55,0.08)] md:px-8 md:py-10">
           <div>
