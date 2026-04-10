@@ -64,7 +64,7 @@ export default function Layout() {
           </div>
         </header>
 
-        <main className="flex-1 px-4 pb-32 pt-4 md:px-6 lg:px-8 lg:pb-10 lg:pt-6">
+        <main className="app-main-content flex-1 px-4 pb-32 pt-4 md:px-6 lg:px-8 lg:pb-8 lg:pt-5">
           <Outlet />
         </main>
 
