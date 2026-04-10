@@ -69,7 +69,7 @@ export default function GroupDetail() {
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [showAddExpenseForm, setShowAddExpenseForm] = useState(false);
-  const [memberEmail, setMemberEmail] = useState('');
+  const [memberUsername, setMemberUsername] = useState('');
   const [commentBody, setCommentBody] = useState('');
   const [expenseForm, setExpenseForm] = useState({
     description: '',
@@ -259,9 +259,9 @@ export default function GroupDetail() {
     setSettlements(groupSettlements);
   }
 
-  async function addMemberByEmail(email: string) {
-    if (!groupId || !email.trim()) {
-      setError('Member email is required');
+  async function addMemberByUsername(username: string) {
+    if (!groupId || !username.trim()) {
+      setError('Member username is required');
       return;
     }
 
@@ -269,8 +269,8 @@ export default function GroupDetail() {
     setError('');
 
     try {
-      await api.addGroupMember(groupId, { email: email.trim().toLowerCase() });
-      setMemberEmail('');
+      await api.addGroupMember(groupId, { username: username.trim().toLowerCase() });
+      setMemberUsername('');
       await refreshGroupData(groupId);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to add member');
@@ -369,7 +369,7 @@ export default function GroupDetail() {
 
   async function handleAddMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await addMemberByEmail(memberEmail);
+    await addMemberByUsername(memberUsername);
   }
 
   function updateCreateManualSplit(userId: string, amount: string) {
@@ -853,7 +853,7 @@ export default function GroupDetail() {
       <section className="surface-card p-4">
         <div>
           <h2 className="text-xl font-semibold text-slate-900">Members</h2>
-          <p className="mt-1 text-sm text-slate-500">Add signed-up friends quickly or invite by email.</p>
+          <p className="mt-1 text-sm text-slate-500">Add signed-up friends quickly or invite by username.</p>
         </div>
 
         {availableFriends.length > 0 ? (
@@ -864,12 +864,12 @@ export default function GroupDetail() {
                 <div key={friend.id} className="soft-card flex items-center justify-between gap-3 p-3">
                   <div className="min-w-0">
                     <p className="font-semibold text-slate-900">{friend.name}</p>
-                    <p className="truncate text-sm text-slate-500">{friend.email}</p>
+                    <p className="truncate text-sm text-slate-500">@{friend.username}</p>
                   </div>
                   <button
                     type="button"
                     disabled={isAddingMember}
-                    onClick={() => void addMemberByEmail(friend.email)}
+                    onClick={() => void addMemberByUsername(friend.username)}
                     className="rounded-xl border border-[#cfe7e3] px-3 py-2 text-sm font-semibold text-[#2b938c]"
                   >
                     Add
@@ -882,14 +882,13 @@ export default function GroupDetail() {
 
         <form className="mt-4 space-y-3" onSubmit={handleAddMember}>
           <label className="block space-y-2">
-            <span className="text-sm font-medium text-slate-700">Add by email</span>
+            <span className="text-sm font-medium text-slate-700">Add by username</span>
             <input
               required
-              autoComplete="email"
-              type="email"
-              value={memberEmail}
-              onChange={(event) => setMemberEmail(event.target.value)}
-              placeholder="friend@example.com"
+              autoComplete="username"
+              value={memberUsername}
+              onChange={(event) => setMemberUsername(event.target.value)}
+              placeholder="friend_username"
               className="form-input"
             />
           </label>
@@ -916,7 +915,7 @@ export default function GroupDetail() {
                   {member.user.name}
                   {member.user.id === user?.id ? ' (You)' : ''}
                 </p>
-                <p className="truncate text-sm text-slate-500">{member.user.email}</p>
+                <p className="truncate text-sm text-slate-500">@{member.user.username}</p>
               </div>
             </div>
           ))}
@@ -937,7 +936,7 @@ export default function GroupDetail() {
               <div key={entry.user.id} className="soft-card flex items-center justify-between p-3">
                 <div>
                   <p className="font-semibold text-slate-900">{entry.user.name}</p>
-                  <p className="text-sm text-slate-500">{entry.user.email}</p>
+                  <p className="text-sm text-slate-500">@{entry.user.username}</p>
                 </div>
                 <div className="text-right">
                   <p

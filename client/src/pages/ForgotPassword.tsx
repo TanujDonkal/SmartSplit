@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { api } from '../api';
 import NoticeBanner from '../components/NoticeBanner';
 import { supabase } from '../lib/supabase';
 
@@ -22,7 +23,7 @@ function getRateLimitMessage(error: unknown) {
 }
 
 export default function ForgotPassword() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,8 +61,12 @@ export default function ForgotPassword() {
     setIsSubmitting(true);
 
     try {
+      const resolved = await api.resolveUsername({
+        username: username.trim().toLowerCase(),
+      });
+
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        email.trim().toLowerCase(),
+        resolved.email,
         {
           redirectTo: `${window.location.origin}/update-password`,
         },
@@ -132,7 +137,7 @@ export default function ForgotPassword() {
             />
             <h1 className="mb-3 text-4xl font-semibold text-slate-900">Forgot password</h1>
             <p className="mb-8 text-sm text-slate-500">
-              Enter your registered email and we will send you a secure reset link.
+              Enter your username and we will send a secure reset link to the registered email for that account.
             </p>
 
             {message ? (
@@ -152,13 +157,12 @@ export default function ForgotPassword() {
 
             <form className="space-y-5" onSubmit={handleRequestReset}>
               <label className="block space-y-2">
-                <span className="text-sm font-medium text-slate-700">Registered email</span>
+                <span className="text-sm font-medium text-slate-700">Username</span>
                 <input
                   required
-                  autoComplete="email"
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  autoComplete="username"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
                   className="form-input"
                 />
               </label>

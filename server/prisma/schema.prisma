@@ -19,6 +19,7 @@ enum FriendActivityType {
 model User {
   id                  String             @id @default(uuid())
   name                String
+  username            String             @unique
   email               String             @unique
   default_currency    String             @default("CAD")
   password_hash       String

@@ -1,6 +1,7 @@
 import { Response } from "express";
 import prisma from "../utils/prisma";
 import { AuthRequest } from "../middleware/auth";
+import { normalizeUsername } from "../utils/username";
 
 export const createGroup = async (
   req: AuthRequest,
@@ -22,7 +23,7 @@ export const createGroup = async (
         create: { user_id: userId },
       },
     },
-    include: { members: { include: { user: { select: { id: true, name: true, email: true } } } } },
+    include: { members: { include: { user: { select: { id: true, name: true, username: true, email: true } } } } },
   });
 
   res.status(201).json(group);
@@ -33,10 +34,10 @@ export const addMember = async (
   res: Response
 ): Promise<void> => {
   const groupId = req.params.groupId as string;
-  const { email } = req.body;
+  const username = normalizeUsername(req.body.username);
 
-  if (!email) {
-    res.status(400).json({ error: "Member email is required" });
+  if (!username) {
+    res.status(400).json({ error: "Member username is required" });
     return;
   }
 
@@ -46,9 +47,9 @@ export const addMember = async (
     return;
   }
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({ where: { username } });
   if (!user) {
-    res.status(404).json({ error: "User not found with that email" });
+    res.status(404).json({ error: "User not found with that username" });
     return;
   }
 
@@ -62,7 +63,7 @@ export const addMember = async (
 
   const member = await prisma.groupMember.create({
     data: { group_id: groupId, user_id: user.id },
-    include: { user: { select: { id: true, name: true, email: true } } },
+    include: { user: { select: { id: true, name: true, username: true, email: true } } },
   });
 
   res.status(201).json(member);
@@ -77,7 +78,7 @@ export const getGroups = async (
   const groups = await prisma.group.findMany({
     where: { members: { some: { user_id: userId } } },
     include: {
-      members: { include: { user: { select: { id: true, name: true, email: true } } } },
+      members: { include: { user: { select: { id: true, name: true, username: true, email: true } } } },
       _count: { select: { expenses: true } },
     },
   });

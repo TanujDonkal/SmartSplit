@@ -8,6 +8,7 @@ export interface AuthRequest extends Request {
   userId?: string;
   userEmail?: string;
   userName?: string;
+  userUsername?: string;
 }
 
 export const authenticate = (
@@ -30,6 +31,7 @@ export const authenticate = (
       req.userId = String(payload.sub ?? "");
       req.userEmail = payload.email;
       req.userName = payload.user_metadata?.name;
+      req.userUsername = payload.user_metadata?.username;
 
       if (!req.userId) {
         res.status(401).json({ error: "Invalid or expired token" });

@@ -11,6 +11,7 @@ export default function Register() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     name: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -35,12 +36,18 @@ export default function Register() {
     let signedIn = false;
 
     try {
+      await api.validateRegistration({
+        username: form.username.trim().toLowerCase(),
+        email: form.email.trim().toLowerCase(),
+      });
+
       const { data, error: authError } = await supabase.auth.signUp({
         email: form.email.trim().toLowerCase(),
         password: form.password,
         options: {
           data: {
             name: form.name.trim(),
+            username: form.username.trim().toLowerCase(),
           },
         },
       });
@@ -55,6 +62,7 @@ export default function Register() {
           {
             email: data.user.email,
             name: form.name.trim(),
+            username: form.username.trim().toLowerCase(),
           },
           data.session.access_token,
         );
@@ -142,6 +150,22 @@ export default function Register() {
                   }
                   className="form-input"
                 />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-slate-700">Username</span>
+                <input
+                  required
+                  autoComplete="username"
+                  value={form.username}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, username: event.target.value }))
+                  }
+                  className="form-input"
+                />
+                <p className="text-sm text-slate-500">
+                  Use 3-24 lowercase letters, numbers, or underscores.
+                </p>
               </label>
 
               <label className="block space-y-2">
