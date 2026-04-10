@@ -16,7 +16,9 @@ export default function Home() {
                 Split bills simply across friends, trips, and shared groups.
               </h1>
               <p className="mt-4 max-w-xl text-base leading-7 text-slate-600 md:text-lg lg:text-[1.05rem] lg:leading-8">
-                SmartSplit keeps direct expenses, group balances, receipts, settlements, and AI helpers together in one polished flow that feels good on mobile and confident on desktop.
+                SmartSplit keeps direct expenses, group balances, receipts, settlements, and AI
+                helpers together in one polished flow that feels good on mobile and confident on
+                desktop.
               </p>
             </div>
 
@@ -55,7 +57,8 @@ export default function Home() {
               Sign in from any screen size without losing clarity.
             </h2>
             <p className="mt-4 text-sm leading-7 text-slate-500 lg:text-[0.98rem] lg:leading-7">
-              Use SmartSplit on your phone, tablet, or laptop with the same core workflow for friends, groups, activity, and account management.
+              Use SmartSplit on your phone, tablet, or laptop with the same core workflow for
+              friends, groups, activity, and account management.
             </p>
           </div>
 
