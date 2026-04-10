@@ -2,9 +2,9 @@ import { Link } from 'react-router-dom';
 
 export default function Home() {
   return (
-    <div className="px-4 py-6 md:px-6 md:py-8 lg:min-h-screen">
-      <div className="mx-auto grid w-full max-w-6xl gap-6 lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[minmax(0,1.1fr)_minmax(22rem,26rem)]">
-        <section className="flex flex-col justify-between rounded-[2rem] border border-[#d6d7d2]/80 bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(241,248,247,0.92))] px-6 py-8 shadow-[0_18px_55px_rgba(31,41,55,0.08)] md:px-8 md:py-10">
+    <div className="px-4 py-6 md:px-6 md:py-8">
+      <div className="mx-auto grid w-full max-w-6xl items-start gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(22rem,26rem)]">
+        <section className="flex flex-col gap-8 rounded-[2rem] border border-[#d6d7d2]/80 bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(241,248,247,0.92))] px-6 py-8 shadow-[0_18px_55px_rgba(31,41,55,0.08)] md:px-8 md:py-10 lg:gap-10">
           <div>
             <div className="inline-flex items-center gap-3 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-slate-600 shadow-[0_10px_24px_rgba(31,41,55,0.05)]">
               <span className="grid h-8 w-8 place-items-center rounded-full bg-[#eef8f7] text-[#36b5ac]">
@@ -38,7 +38,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-10">
+          <div>
             <img
               src="/smartsplit-logo.png"
               alt="SmartSplit"
@@ -53,7 +53,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="flex flex-col justify-between rounded-[2rem] border border-[#d6d7d2]/80 bg-[#fffdfa] px-6 py-8 shadow-[0_18px_55px_rgba(31,41,55,0.08)] md:px-8 md:py-10">
+        <section className="flex flex-col gap-8 rounded-[2rem] border border-[#d6d7d2]/80 bg-[#fffdfa] px-6 py-8 shadow-[0_18px_55px_rgba(31,41,55,0.08)] md:px-8 md:py-10">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#36b5ac]">
               Get Started
@@ -66,7 +66,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="mt-8 space-y-4">
+          <div className="space-y-4">
             <Link
               className="primary-button block w-full px-6 py-4 text-center text-lg"
               to="/register"
