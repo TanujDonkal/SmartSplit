@@ -235,7 +235,12 @@ export async function getSmartSplitAssistantReply(userId: string, messages: Chat
     .slice(-10)
     .map((message) => ({
       role: message.role,
-      content: [{ type: "input_text", text: message.text }],
+      content: [
+        {
+          type: message.role === "assistant" ? "output_text" : "input_text",
+          text: message.text,
+        },
+      ],
     }));
 
   const systemPrompt = [
