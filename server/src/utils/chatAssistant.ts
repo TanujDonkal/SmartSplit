@@ -42,7 +42,46 @@ type AssistantContext = {
 
 type OpenAiResponse = {
   output_text?: string;
+  output?: Array<{
+    content?: Array<
+      | {
+          type?: string;
+          text?: string;
+        }
+      | {
+          type?: string;
+          value?: string;
+        }
+    >;
+  }>;
 };
+
+function extractResponseText(body: OpenAiResponse) {
+  const directOutputText = body.output_text?.trim();
+
+  if (directOutputText) {
+    return directOutputText;
+  }
+
+  const fallbackText = body.output
+    ?.flatMap((item) => item.content ?? [])
+    .map((content) => {
+      if ("text" in content && typeof content.text === "string") {
+        return content.text.trim();
+      }
+
+      if ("value" in content && typeof content.value === "string") {
+        return content.value.trim();
+      }
+
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+
+  return fallbackText || "";
+}
 
 function getOpenAiConfig() {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
@@ -278,7 +317,7 @@ export async function getSmartSplitAssistantReply(userId: string, messages: Chat
   }
 
   const body = (await response.json()) as OpenAiResponse;
-  const outputText = body.output_text?.trim();
+  const outputText = extractResponseText(body);
 
   if (!outputText) {
     throw new Error("AI assistant returned an empty response");
