@@ -1,13 +1,89 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { AppScreen } from '@/components/AppScreen';
-import { FormField } from '@/components/FormField';
+import { NoticeText } from '@/components/NoticeText';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { SurfaceCard } from '@/components/SurfaceCard';
+import { useAuth } from '@/context/useAuth';
+import { api, type AssistantChatMessage } from '@/lib/api';
 import { colors, radii, spacing } from '@/theme/tokens';
 
+type ChatMessage = {
+  id: string;
+  role: AssistantChatMessage['role'];
+  text: string;
+};
+
 export default function AssistantScreen() {
+  const { token } = useAuth();
   const [input, setInput] = useState('');
+  const [error, setError] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      id: 'assistant-welcome',
+      role: 'assistant',
+      text: 'Hi, I am your SmartSplit assistant. Ask me about splitting with a friend, creating a group, or settling balances.',
+    },
+  ]);
+
+  async function handleSend() {
+    const trimmed = input.trim();
+    if (!trimmed || isSending) {
+      return;
+    }
+
+    if (!token) {
+      setError('Log in first to use SmartSplit AI.');
+      return;
+    }
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      text: trimmed,
+    };
+
+    const nextMessages = [...chatMessages, userMessage];
+    setChatMessages(nextMessages);
+    setInput('');
+    setError('');
+    setIsSending(true);
+
+    try {
+      const response = await api.askAssistant({
+        messages: nextMessages.map((message) => ({
+          role: message.role,
+          text: message.text,
+        })),
+      });
+
+      setChatMessages((current) => [
+        ...current,
+        {
+          id: `assistant-${Date.now() + 1}`,
+          role: 'assistant',
+          text: response.reply,
+        },
+      ]);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? `I couldn't reach SmartSplit AI right now: ${err.message}`
+          : 'I could not reach SmartSplit AI right now.';
+
+      setChatMessages((current) => [
+        ...current,
+        {
+          id: `assistant-error-${Date.now() + 1}`,
+          role: 'assistant',
+          text: message,
+        },
+      ]);
+    } finally {
+      setIsSending(false);
+    }
+  }
 
   return (
     <AppScreen>
@@ -16,27 +92,43 @@ export default function AssistantScreen() {
         <Text style={styles.subtitle}>Ask about friends, groups, expenses, or settlements.</Text>
       </SurfaceCard>
 
+      {error ? <NoticeText tone="error" message={error} /> : null}
+
       <View style={styles.thread}>
-        <View style={[styles.bubble, styles.assistantBubble]}>
-          <Text style={styles.assistantText}>
-            Hi, I am your SmartSplit assistant. Ask me about splitting with a friend, creating a
-            group, or settling balances.
-          </Text>
-        </View>
-        <View style={[styles.bubble, styles.userBubble]}>
-          <Text style={styles.userText}>How much money do I owe?</Text>
-        </View>
+        {chatMessages.map((message) => (
+          <View
+            key={message.id}
+            style={[
+              styles.bubble,
+              message.role === 'assistant' ? styles.assistantBubble : styles.userBubble,
+            ]}
+          >
+            <Text
+              style={
+                message.role === 'assistant' ? styles.assistantText : styles.userText
+              }
+            >
+              {message.text}
+            </Text>
+          </View>
+        ))}
       </View>
 
       <SurfaceCard>
         <View style={styles.inputRow}>
-          <FormField
-            label="Ask AI"
+          <TextInput
             value={input}
             onChangeText={setInput}
             placeholder="Ask how to split something..."
+            placeholderTextColor={colors.textSoft}
+            style={styles.input}
+            multiline
           />
-          <PrimaryButton label="Send" />
+          <PrimaryButton
+            label={isSending ? 'Sending...' : 'Send'}
+            onPress={() => void handleSend()}
+            disabled={isSending}
+          />
         </View>
       </SurfaceCard>
     </AppScreen>
@@ -81,6 +173,18 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   inputRow: {
-    gap: spacing.sm,
+    gap: spacing.md,
+  },
+  input: {
+    minHeight: 96,
+    borderRadius: radii.md,
+    borderWidth: 2,
+    borderColor: colors.secondary,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: 16,
+    color: colors.text,
+    textAlignVertical: 'top',
   },
 });
