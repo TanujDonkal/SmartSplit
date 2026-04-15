@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/AppHeader';
 import { AppScreen } from '@/components/AppScreen';
 import { NoticeText } from '@/components/NoticeText';
+import { SwipeToDeleteRow } from '@/components/SwipeToDeleteRow';
 import { SurfaceCard } from '@/components/SurfaceCard';
 import { useAuth } from '@/context/useAuth';
 import { api, type Expense, type Group } from '@/lib/api';
@@ -119,64 +120,69 @@ export default function ActivityScreen() {
         </SurfaceCard>
       ) : (
         recentExpenses.map((expense) => (
-          <Pressable
+          <SwipeToDeleteRow
             key={expense.id}
-            onPress={() => {
-              if (expense.group_id && groupMap[expense.group_id]) {
-                router.push(`/group/${expense.group_id}`);
-              }
-            }}
-            style={({ pressed }) => [pressed ? styles.cardPressed : null]}
+            disabled={deletingExpenseId === expense.id}
+            onDelete={() => confirmDeleteExpense(expense)}
           >
-            <SurfaceCard>
-              <View style={styles.rowTop}>
-                <View style={styles.titleWrap}>
-                  <Text style={styles.itemTitle}>{expense.description}</Text>
-                  <Text style={styles.itemMeta}>
-                    Paid by {expense.payer.name} in {expense.groupName}
-                  </Text>
+            <Pressable
+              onPress={() => {
+                if (expense.group_id && groupMap[expense.group_id]) {
+                  router.push(`/group/${expense.group_id}`);
+                }
+              }}
+              style={({ pressed }) => [pressed ? styles.cardPressed : null]}
+            >
+              <SurfaceCard>
+                <View style={styles.rowTop}>
+                  <View style={styles.titleWrap}>
+                    <Text style={styles.itemTitle}>{expense.description}</Text>
+                    <Text style={styles.itemMeta}>
+                      Paid by {expense.payer.name} in {expense.groupName}
+                    </Text>
+                  </View>
+                  <View style={styles.iconRow}>
+                    <Pressable
+                      style={styles.iconButton}
+                      onPress={() => {
+                        if (expense.group_id && groupMap[expense.group_id]) {
+                          router.push(`/group/${expense.group_id}`);
+                        }
+                      }}
+                    >
+                      <Ionicons name="eye-outline" size={16} color={colors.textMuted} />
+                    </Pressable>
+                    <Pressable
+                      style={styles.iconButton}
+                      onPress={() => {
+                        if (expense.group_id && groupMap[expense.group_id]) {
+                          router.push(`/group/${expense.group_id}`);
+                        }
+                      }}
+                    >
+                      <Ionicons name="create-outline" size={16} color={colors.textMuted} />
+                    </Pressable>
+                    <Pressable
+                      style={[styles.iconButton, styles.deleteButton]}
+                      onPress={() => confirmDeleteExpense(expense)}
+                      disabled={deletingExpenseId === expense.id}
+                    >
+                      <Ionicons name="trash-outline" size={16} color="#dc2626" />
+                    </Pressable>
+                  </View>
                 </View>
-                <View style={styles.iconRow}>
-                  <Pressable
-                    style={styles.iconButton}
-                    onPress={() => {
-                      if (expense.group_id && groupMap[expense.group_id]) {
-                        router.push(`/group/${expense.group_id}`);
-                      }
-                    }}
-                  >
-                    <Ionicons name="eye-outline" size={16} color={colors.textMuted} />
-                  </Pressable>
-                  <Pressable
-                    style={styles.iconButton}
-                    onPress={() => {
-                      if (expense.group_id && groupMap[expense.group_id]) {
-                        router.push(`/group/${expense.group_id}`);
-                      }
-                    }}
-                  >
-                    <Ionicons name="create-outline" size={16} color={colors.textMuted} />
-                  </Pressable>
-                  <Pressable
-                    style={[styles.iconButton, styles.deleteButton]}
-                    onPress={() => confirmDeleteExpense(expense)}
-                    disabled={deletingExpenseId === expense.id}
-                  >
-                    <Ionicons name="trash-outline" size={16} color="#dc2626" />
-                  </Pressable>
-                </View>
-              </View>
-              <Text style={styles.amount}>
-                {formatMoney(Number(expense.amount), expense.currency)}
-              </Text>
-              {expense.currency !== 'CAD' ? (
-                <Text style={styles.converted}>
-                  {formatMoney(Number(expense.converted_amount), 'CAD')} normalized
+                <Text style={styles.amount}>
+                  {formatMoney(Number(expense.amount), expense.currency)}
                 </Text>
-              ) : null}
-              {expense.note ? <Text style={styles.note}>{expense.note}</Text> : null}
-            </SurfaceCard>
-          </Pressable>
+                {expense.currency !== 'CAD' ? (
+                  <Text style={styles.converted}>
+                    {formatMoney(Number(expense.converted_amount), 'CAD')} normalized
+                  </Text>
+                ) : null}
+                {expense.note ? <Text style={styles.note}>{expense.note}</Text> : null}
+              </SurfaceCard>
+            </Pressable>
+          </SwipeToDeleteRow>
         ))
       )}
     </AppScreen>

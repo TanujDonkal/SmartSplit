@@ -7,6 +7,7 @@ import { AppScreen } from '@/components/AppScreen';
 import { FormField } from '@/components/FormField';
 import { NoticeText } from '@/components/NoticeText';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { SwipeToDeleteRow } from '@/components/SwipeToDeleteRow';
 import { SurfaceCard } from '@/components/SurfaceCard';
 import { useAuth } from '@/context/useAuth';
 import { api, type Balance, type Group } from '@/lib/api';
@@ -174,12 +175,16 @@ export default function GroupsScreen() {
               const canDelete = group.created_by === user?.id;
 
               return (
-                <Pressable
+                <SwipeToDeleteRow
                   key={group.id}
-                  onPress={() => router.push(`/group/${group.id}`)}
-                  style={({ pressed }) => [pressed ? styles.cardPressed : null]}
+                  disabled={!canDelete || deletingGroupId === group.id}
+                  onDelete={() => confirmDeleteGroup(group)}
                 >
-                  <SurfaceCard>
+                  <Pressable
+                    onPress={() => router.push(`/group/${group.id}`)}
+                    style={({ pressed }) => [pressed ? styles.cardPressed : null]}
+                  >
+                    <SurfaceCard>
                     <View style={styles.rowTop}>
                       <View style={styles.titleWrap}>
                         <Text style={styles.groupName}>{group.name}</Text>
@@ -233,8 +238,9 @@ export default function GroupsScreen() {
                           ? `You owe ${formatMoney(Math.abs(mine), 'CAD')}`
                           : 'Settled right now'}
                     </Text>
-                  </SurfaceCard>
-                </Pressable>
+                    </SurfaceCard>
+                  </Pressable>
+                </SwipeToDeleteRow>
               );
             })
           )}
