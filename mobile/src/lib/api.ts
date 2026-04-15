@@ -129,6 +129,18 @@ export interface GroupExpenseSplitInput {
   amount_owed: number;
 }
 
+export interface ParsedReceiptResult {
+  receipt_data: string;
+  receipt_storage_key?: string | null;
+  parsed: {
+    description: string;
+    amount: number | null;
+    currency: SupportedCurrency;
+    incurred_on: string | null;
+    note: string | null;
+  };
+}
+
 export interface AssistantChatMessage {
   role: 'assistant' | 'user';
   text: string;
@@ -218,6 +230,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  deleteFriend: (friendId: string) =>
+    request<{ message: string }>(`/friends/${friendId}`, {
+      method: 'DELETE',
+    }),
   getFriendSummary: (friendId: string) => request<FriendSummary>(`/friends/${friendId}/summary`),
   getFriendExpenses: (friendId: string) =>
     request<FriendExpense[]>(`/friends/${friendId}/expenses`),
@@ -284,6 +300,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  deleteGroup: (groupId: string) =>
+    request<{ message: string }>(`/groups/${groupId}`, {
+      method: 'DELETE',
+    }),
   addGroupMember: (groupId: string, data: { username: string }) =>
     request<GroupMember>(`/groups/${groupId}/members`, {
       method: 'POST',
@@ -334,6 +354,15 @@ export const api = {
     }),
   addExpenseComment: (expenseId: string, data: { body: string }) =>
     request<ExpenseComment>(`/expenses/${expenseId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  parseReceipt: (data: {
+    receipt_data?: string;
+    existing_receipt_data?: string | null;
+    existing_receipt_storage_key?: string | null;
+  }) =>
+    request<ParsedReceiptResult>('/receipts/parse', {
       method: 'POST',
       body: JSON.stringify(data),
     }),

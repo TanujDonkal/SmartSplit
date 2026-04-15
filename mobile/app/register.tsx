@@ -58,7 +58,7 @@ export default function RegisterScreen() {
   }
 
   return (
-    <AppScreen>
+    <AppScreen safeTop={false}>
       <AuthHero
         eyebrow="Join SmartSplit"
         title="Create one account for direct splits, group trips, receipts, and account control."

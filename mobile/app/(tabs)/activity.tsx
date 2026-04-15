@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/AppHeader';
 import { AppScreen } from '@/components/AppScreen';
 import { NoticeText } from '@/components/NoticeText';
@@ -18,6 +19,7 @@ export default function ActivityScreen() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [recentExpenses, setRecentExpenses] = useState<DashboardExpense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -56,6 +58,35 @@ export default function ActivityScreen() {
       setError(err instanceof Error ? err.message : 'Unable to load activity');
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  function confirmDeleteExpense(expense: DashboardExpense) {
+    Alert.alert(
+      'Delete activity',
+      `Do you want to delete ${expense.description}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => void handleDeleteExpense(expense.id),
+        },
+      ],
+    );
+  }
+
+  async function handleDeleteExpense(expenseId: string) {
+    setDeletingExpenseId(expenseId);
+    setError('');
+
+    try {
+      await api.deleteExpense(expenseId);
+      await loadActivity();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to delete activity');
+    } finally {
+      setDeletingExpenseId(null);
     }
   }
 
@@ -98,10 +129,43 @@ export default function ActivityScreen() {
             style={({ pressed }) => [pressed ? styles.cardPressed : null]}
           >
             <SurfaceCard>
-              <Text style={styles.itemTitle}>{expense.description}</Text>
-              <Text style={styles.itemMeta}>
-                Paid by {expense.payer.name} in {expense.groupName}
-              </Text>
+              <View style={styles.rowTop}>
+                <View style={styles.titleWrap}>
+                  <Text style={styles.itemTitle}>{expense.description}</Text>
+                  <Text style={styles.itemMeta}>
+                    Paid by {expense.payer.name} in {expense.groupName}
+                  </Text>
+                </View>
+                <View style={styles.iconRow}>
+                  <Pressable
+                    style={styles.iconButton}
+                    onPress={() => {
+                      if (expense.group_id && groupMap[expense.group_id]) {
+                        router.push(`/group/${expense.group_id}`);
+                      }
+                    }}
+                  >
+                    <Ionicons name="eye-outline" size={16} color={colors.textMuted} />
+                  </Pressable>
+                  <Pressable
+                    style={styles.iconButton}
+                    onPress={() => {
+                      if (expense.group_id && groupMap[expense.group_id]) {
+                        router.push(`/group/${expense.group_id}`);
+                      }
+                    }}
+                  >
+                    <Ionicons name="create-outline" size={16} color={colors.textMuted} />
+                  </Pressable>
+                  <Pressable
+                    style={[styles.iconButton, styles.deleteButton]}
+                    onPress={() => confirmDeleteExpense(expense)}
+                    disabled={deletingExpenseId === expense.id}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#dc2626" />
+                  </Pressable>
+                </View>
+              </View>
               <Text style={styles.amount}>
                 {formatMoney(Number(expense.amount), expense.currency)}
               </Text>
@@ -136,10 +200,34 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
+  rowTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  titleWrap: {
+    flex: 1,
+  },
   itemMeta: {
     marginTop: 4,
     fontSize: 14,
     color: colors.textMuted,
+  },
+  iconRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  iconButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceMuted,
+  },
+  deleteButton: {
+    backgroundColor: '#fee2e2',
   },
   amount: {
     marginTop: spacing.sm,

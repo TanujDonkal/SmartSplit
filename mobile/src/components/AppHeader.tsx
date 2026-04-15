@@ -8,7 +8,7 @@ export function AppHeader() {
 
   return (
     <View style={styles.header}>
-      <BrandHeader />
+      <BrandHeader variant="mark" />
       <Pressable style={styles.askButton} onPress={() => router.push('/assistant')}>
         <Text style={styles.askText}>Ask AI</Text>
       </Pressable>

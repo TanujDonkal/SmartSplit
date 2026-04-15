@@ -1,39 +1,38 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
-import { colors } from '@/theme/tokens';
+import { Image, StyleSheet, View } from 'react-native';
 
-export function BrandHeader() {
+type BrandHeaderProps = {
+  variant?: 'full' | 'mark';
+};
+
+export function BrandHeader({ variant = 'full' }: BrandHeaderProps) {
+  if (variant === 'mark') {
+    return (
+      <View style={styles.row}>
+        <Image source={require('../../assets/icon.png')} style={styles.mark} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.row}>
       <Image
         source={{ uri: 'https://smart-split-expanse.vercel.app/smartsplit-logo.png' }}
         style={styles.logo}
       />
-      <View>
-        <Text style={styles.title}>SmartSplit</Text>
-        <Text style={styles.caption}>Split bills simply</Text>
-      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+    alignSelf: 'flex-start',
   },
   logo: {
+    width: 172,
+    height: 64,
+  },
+  mark: {
     width: 44,
     height: 44,
-    borderRadius: 12,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  caption: {
-    fontSize: 12,
-    color: colors.textMuted,
   },
 });
