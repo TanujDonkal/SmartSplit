@@ -1,0 +1,17 @@
+{
+  "name": "smartsplit",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server",
+    "mobile"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace client run dev",
+    "dev:server": "npm --workspace server run dev",
+    "dev:mobile": "npm --workspace mobile run start",
+    "build:web": "npm --workspace client run build",
+    "build:server": "npm --workspace server run build",
+    "typecheck:mobile": "npm --workspace mobile run typecheck"
+  }
+}
