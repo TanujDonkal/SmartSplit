@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/AppHeader';
 import { AppScreen } from '@/components/AppScreen';
 import { FormField } from '@/components/FormField';
@@ -20,6 +21,7 @@ export default function FriendsScreen() {
   const [friendUsername, setFriendUsername] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingFriend, setIsAddingFriend] = useState(false);
+  const [deletingFriendId, setDeletingFriendId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -70,6 +72,35 @@ export default function FriendsScreen() {
       setError(err instanceof Error ? err.message : 'Unable to add friend');
     } finally {
       setIsAddingFriend(false);
+    }
+  }
+
+  function confirmDeleteFriend(friend: Friend) {
+    Alert.alert(
+      'Delete friend',
+      `Do you want to delete ${friend.name}? This will also remove your shared direct expense history.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => void handleDeleteFriend(friend.id),
+        },
+      ],
+    );
+  }
+
+  async function handleDeleteFriend(friendId: string) {
+    setDeletingFriendId(friendId);
+    setError('');
+
+    try {
+      await api.deleteFriend(friendId);
+      await loadFriends();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to delete friend');
+    } finally {
+      setDeletingFriendId(null);
     }
   }
 
@@ -139,8 +170,33 @@ export default function FriendsScreen() {
                   style={({ pressed }) => [pressed ? styles.cardPressed : null]}
                 >
                   <SurfaceCard>
-                    <Text style={styles.friendName}>{friend.name}</Text>
-                    <Text style={styles.friendUsername}>@{friend.username}</Text>
+                    <View style={styles.rowTop}>
+                      <View style={styles.titleWrap}>
+                        <Text style={styles.friendName}>{friend.name}</Text>
+                        <Text style={styles.friendUsername}>@{friend.username}</Text>
+                      </View>
+                      <View style={styles.iconRow}>
+                        <Pressable
+                          style={styles.iconButton}
+                          onPress={() => router.push(`/friend/${friend.id}`)}
+                        >
+                          <Ionicons name="eye-outline" size={16} color={colors.textMuted} />
+                        </Pressable>
+                        <Pressable
+                          style={styles.iconButton}
+                          onPress={() => router.push(`/friend/${friend.id}`)}
+                        >
+                          <Ionicons name="create-outline" size={16} color={colors.textMuted} />
+                        </Pressable>
+                        <Pressable
+                          style={[styles.iconButton, styles.deleteButton]}
+                          onPress={() => confirmDeleteFriend(friend)}
+                          disabled={deletingFriendId === friend.id}
+                        >
+                          <Ionicons name="trash-outline" size={16} color="#dc2626" />
+                        </Pressable>
+                      </View>
+                    </View>
                     <Text style={[styles.balance, tone]}>
                       {balance > 0.005
                         ? `${friend.name} owes you ${formatMoney(Math.abs(balance), 'CAD')}`
@@ -184,10 +240,34 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
+  rowTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  titleWrap: {
+    flex: 1,
+  },
   friendUsername: {
     marginTop: 4,
     fontSize: 14,
     color: colors.textMuted,
+  },
+  iconRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  iconButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceMuted,
+  },
+  deleteButton: {
+    backgroundColor: '#fee2e2',
   },
   balance: {
     marginTop: spacing.sm,

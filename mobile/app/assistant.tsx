@@ -86,7 +86,7 @@ export default function AssistantScreen() {
   }
 
   return (
-    <AppScreen>
+    <AppScreen safeTop={false}>
       <SurfaceCard>
         <Text style={styles.title}>SmartSplit AI</Text>
         <Text style={styles.subtitle}>Ask about friends, groups, expenses, or settlements.</Text>

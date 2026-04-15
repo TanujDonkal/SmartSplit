@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, radii, shadows, spacing } from '@/theme/tokens';
+import { colors, radii, spacing } from '@/theme/tokens';
 
 export function FeaturePill({ label }: { label: string }) {
   return (
@@ -11,20 +11,17 @@ export function FeaturePill({ label }: { label: string }) {
 
 const styles = StyleSheet.create({
   pill: {
-    flex: 1,
-    minWidth: 96,
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: '#ffffff',
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surfaceMuted,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    ...shadows.card,
+    paddingVertical: spacing.sm,
   },
   label: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#475569',
-    lineHeight: 20,
+    color: colors.textMuted,
+    lineHeight: 16,
   },
 });

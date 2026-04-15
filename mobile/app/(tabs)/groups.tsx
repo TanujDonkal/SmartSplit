@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/AppHeader';
 import { AppScreen } from '@/components/AppScreen';
 import { FormField } from '@/components/FormField';
@@ -21,6 +22,7 @@ export default function GroupsScreen() {
   const [dashboardNetBalance, setDashboardNetBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [deletingGroupId, setDeletingGroupId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -83,6 +85,35 @@ export default function GroupsScreen() {
     }
   }
 
+  function confirmDeleteGroup(group: Group) {
+    Alert.alert(
+      'Delete group',
+      `Do you want to delete ${group.name}? This will also remove its expenses, balances, and comments.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => void handleDeleteGroup(group.id),
+        },
+      ],
+    );
+  }
+
+  async function handleDeleteGroup(groupId: string) {
+    setDeletingGroupId(groupId);
+    setError('');
+
+    try {
+      await api.deleteGroup(groupId);
+      await loadGroups();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to delete group');
+    } finally {
+      setDeletingGroupId(null);
+    }
+  }
+
   const dashboardMessage =
     dashboardNetBalance > 0.005
       ? `Overall, you are owed ${formatMoney(Math.abs(dashboardNetBalance), 'CAD')}`
@@ -140,6 +171,7 @@ export default function GroupsScreen() {
             groups.map((group) => {
               const balances = groupBalances[group.id] ?? [];
               const mine = balances.find((entry) => entry.user.id === user?.id)?.balance ?? 0;
+              const canDelete = group.created_by === user?.id;
 
               return (
                 <Pressable
@@ -148,11 +180,43 @@ export default function GroupsScreen() {
                   style={({ pressed }) => [pressed ? styles.cardPressed : null]}
                 >
                   <SurfaceCard>
-                    <Text style={styles.groupName}>{group.name}</Text>
-                    <Text style={styles.groupMeta}>
-                      {group.members.length} members
-                      {group._count?.expenses ? ` • ${group._count.expenses} expenses` : ''}
-                    </Text>
+                    <View style={styles.rowTop}>
+                      <View style={styles.titleWrap}>
+                        <Text style={styles.groupName}>{group.name}</Text>
+                        <Text style={styles.groupMeta}>
+                          {group.members.length} members
+                          {group._count?.expenses ? ` • ${group._count.expenses} expenses` : ''}
+                        </Text>
+                      </View>
+                      <View style={styles.iconRow}>
+                        <Pressable
+                          style={styles.iconButton}
+                          onPress={() => router.push(`/group/${group.id}`)}
+                        >
+                          <Ionicons name="eye-outline" size={16} color={colors.textMuted} />
+                        </Pressable>
+                        <Pressable
+                          style={styles.iconButton}
+                          onPress={() => router.push(`/group/${group.id}`)}
+                        >
+                          <Ionicons name="create-outline" size={16} color={colors.textMuted} />
+                        </Pressable>
+                        <Pressable
+                          style={[
+                            styles.iconButton,
+                            canDelete ? styles.deleteButton : styles.disabledButton,
+                          ]}
+                          onPress={() => confirmDeleteGroup(group)}
+                          disabled={!canDelete || deletingGroupId === group.id}
+                        >
+                          <Ionicons
+                            name="trash-outline"
+                            size={16}
+                            color={canDelete ? '#dc2626' : colors.textSoft}
+                          />
+                        </Pressable>
+                      </View>
+                    </View>
                     <Text
                       style={[
                         styles.groupBalance,
@@ -216,6 +280,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.primary,
   },
+  rowTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  titleWrap: {
+    flex: 1,
+  },
   groupName: {
     fontSize: 20,
     fontWeight: '700',
@@ -225,6 +298,24 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 14,
     color: colors.textMuted,
+  },
+  iconRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  iconButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceMuted,
+  },
+  deleteButton: {
+    backgroundColor: '#fee2e2',
+  },
+  disabledButton: {
+    backgroundColor: colors.surfaceMuted,
   },
   groupBalance: {
     marginTop: spacing.sm,

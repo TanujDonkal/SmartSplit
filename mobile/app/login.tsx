@@ -2,12 +2,13 @@ import { Link, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '@/components/AppScreen';
-import { AuthHero } from '@/components/AuthHero';
+import { BrandHeader } from '@/components/BrandHeader';
 import { FormField } from '@/components/FormField';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { SurfaceCard } from '@/components/SurfaceCard';
 import { useAuth } from '@/context/useAuth';
 import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { colors, spacing } from '@/theme/tokens';
 
 export default function LoginScreen() {
@@ -28,12 +29,36 @@ export default function LoginScreen() {
     setError('');
 
     try {
-      const response = await api.login({
+      // Resolve username to email (same as web flow)
+      const resolved = await api.resolveUsername({
         username: username.trim().toLowerCase(),
+      });
+
+      // Sign in via Supabase Auth (same as web flow)
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: resolved.email,
         password,
       });
-      await login(response.token, response.user);
-      router.replace('/(tabs)/groups');
+
+      if (authError) throw authError;
+
+      const accessToken = data.session?.access_token;
+      if (!accessToken) throw new Error('No authenticated session was returned');
+
+      // Sync user with backend
+      const syncedUser = await api.syncCurrentUser(
+        {
+          email: data.user.email ?? resolved.email,
+          name: String(data.user.user_metadata?.name ?? '').trim() || undefined,
+          username:
+            String(data.user.user_metadata?.username ?? '').trim() ||
+            username.trim().toLowerCase(),
+        },
+        accessToken,
+      );
+
+      await login(accessToken, syncedUser);
+      router.replace('/(tabs)/friends');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to log in');
     } finally {
@@ -42,16 +67,11 @@ export default function LoginScreen() {
   }
 
   return (
-    <AppScreen>
-      <AuthHero
-        eyebrow="Welcome Back"
-        title="Pick up your friends, groups, and balances exactly where you left them."
-        body="SmartSplit keeps everyday direct splits and group workflows in one clean space, now ready to grow into a real mobile app."
-        note="This mobile client uses the same backend and auth project as the web app, so the workflows stay aligned."
-      />
-
+    <AppScreen scrollable={false}>
       <SurfaceCard>
+        <BrandHeader variant="mark" />
         <Text style={styles.heading}>Log in</Text>
+        <Text style={styles.subtext}>Use your username and password to continue.</Text>
         <View style={styles.form}>
           <FormField
             label="Username"
@@ -79,6 +99,11 @@ export default function LoginScreen() {
               <Text style={styles.link}>Forgot your password?</Text>
             </Pressable>
           </Link>
+          <Link href="/register" asChild>
+            <Pressable>
+              <Text style={styles.secondaryLink}>Need an account? Sign up</Text>
+            </Pressable>
+          </Link>
         </View>
       </SurfaceCard>
     </AppScreen>
@@ -87,9 +112,16 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   heading: {
+    marginTop: spacing.lg,
     fontSize: 36,
     fontWeight: '700',
     color: colors.text,
+  },
+  subtext: {
+    marginTop: spacing.xs,
+    fontSize: 14,
+    lineHeight: 22,
+    color: colors.textMuted,
   },
   form: {
     marginTop: spacing.lg,
@@ -104,6 +136,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: colors.primaryDark,
     fontSize: 14,
+    fontWeight: '600',
+  },
+  secondaryLink: {
+    textAlign: 'center',
+    color: colors.textMuted,
+    fontSize: 13,
     fontWeight: '600',
   },
 });

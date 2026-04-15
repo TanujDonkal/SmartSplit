@@ -2,6 +2,7 @@ import { Response } from "express";
 import prisma from "../utils/prisma";
 import { AuthRequest } from "../middleware/auth";
 import { normalizeUsername } from "../utils/username";
+import { deleteStoredReceipt } from "../utils/receiptStorage";
 
 function toPair(userId: string, friendId: string) {
   return userId < friendId
@@ -76,4 +77,59 @@ export const getFriends = async (
   );
 
   res.json(friends);
+};
+
+export const deleteFriend = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  const userId = req.userId!;
+  const friendId = req.params.friendId as string;
+  const pair = toPair(userId, friendId);
+
+  try {
+    const friendship = await prisma.friendship.findUnique({
+      where: { user_a_id_user_b_id: pair },
+      include: {
+        expenses: {
+          select: {
+            id: true,
+            receipt_storage_key: true,
+          },
+        },
+      },
+    });
+
+    if (!friendship) {
+      res.status(404).json({ error: "Friendship not found" });
+      return;
+    }
+
+    const expenseIds = friendship.expenses.map((expense) => expense.id);
+    const receiptKeys = friendship.expenses
+      .map((expense) => expense.receipt_storage_key)
+      .filter(Boolean) as string[];
+
+    await prisma.$transaction(async (tx) => {
+      if (expenseIds.length > 0) {
+        await tx.friendExpenseComment.deleteMany({
+          where: { friend_expense_id: { in: expenseIds } },
+        });
+        await tx.friendExpense.deleteMany({
+          where: { id: { in: expenseIds } },
+        });
+      }
+
+      await tx.friendship.delete({
+        where: { id: friendship.id },
+      });
+    });
+
+    await Promise.all(receiptKeys.map((key) => deleteStoredReceipt(key)));
+
+    res.json({ message: "Friend deleted" });
+  } catch (error) {
+    console.error("Delete friend error:", error);
+    res.status(500).json({ error: "Failed to delete friend" });
+  }
 };

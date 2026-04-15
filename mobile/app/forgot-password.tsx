@@ -44,7 +44,7 @@ export default function ForgotPasswordScreen() {
   }
 
   return (
-    <AppScreen>
+    <AppScreen safeTop={false}>
       <AuthHero
         eyebrow="Recovery"
         title="Regain access securely without breaking your account flow."
