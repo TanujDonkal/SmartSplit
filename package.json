@@ -3,8 +3,7 @@
   "private": true,
   "workspaces": [
     "client",
-    "server",
-    "mobile"
+    "server"
   ],
   "overrides": {
     "react": "19.1.0",
@@ -17,9 +16,9 @@
   "scripts": {
     "dev:web": "npm --workspace client run dev",
     "dev:server": "npm --workspace server run dev",
-    "dev:mobile": "npm --workspace mobile run start",
+    "dev:mobile": "npm --prefix mobile run start",
     "build:web": "npm --workspace client run build",
     "build:server": "npm --workspace server run build",
-    "typecheck:mobile": "npm --workspace mobile run typecheck"
+    "typecheck:mobile": "npm --prefix mobile run typecheck"
   }
 }
