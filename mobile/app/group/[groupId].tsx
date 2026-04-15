@@ -5,6 +5,7 @@ import { AppScreen } from '@/components/AppScreen';
 import { FormField } from '@/components/FormField';
 import { NoticeText } from '@/components/NoticeText';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { SelectField } from '@/components/SelectField';
 import { SurfaceCard } from '@/components/SurfaceCard';
 import { useAuth } from '@/context/useAuth';
 import {
@@ -67,6 +68,11 @@ function inferSplitType(expense: Expense, count: number) {
     ? ('equal' as const)
     : ('manual' as const);
 }
+
+const GROUP_SPLIT_OPTIONS: Array<{ label: string; value: 'equal' | 'manual' }> = [
+  { label: 'Split equally across the group', value: 'equal' },
+  { label: 'Set manual amounts for each member', value: 'manual' },
+];
 
 export default function GroupDetailScreen() {
   const params = useLocalSearchParams<{ groupId: string }>();
@@ -439,7 +445,17 @@ export default function GroupDetailScreen() {
             <FormField label="Amount" value={form.amount} onChangeText={(value) => setForm((current) => ({ ...current, amount: value }))} keyboardType="decimal-pad" placeholder="200" />
             <FormField label="Currency" value={form.currency} onChangeText={(value) => setForm((current) => ({ ...current, currency: (value.toUpperCase() as SupportedCurrency) || current.currency }))} hint={`Supported: ${SUPPORTED_CURRENCIES.join(', ')}`} />
             <FormField label="Date" value={form.incurred_on} onChangeText={(value) => setForm((current) => ({ ...current, incurred_on: value }))} placeholder="YYYY-MM-DD" />
-            <FormField label="Split type" value={form.split_type} onChangeText={(value) => setForm((current) => ({ ...current, split_type: value === 'manual' ? 'manual' : 'equal' }))} hint="Use equal or manual" />
+            <SelectField
+              label="How should this split work?"
+              value={form.split_type}
+              options={GROUP_SPLIT_OPTIONS}
+              onChange={(value) =>
+                setForm((current) => ({
+                  ...current,
+                  split_type: value === 'manual' ? 'manual' : 'equal',
+                }))
+              }
+            />
             {form.split_type === 'manual' ? (
               <View style={styles.manualWrap}>
                 {form.manual_splits.map((split) => (
@@ -475,7 +491,17 @@ export default function GroupDetailScreen() {
             <FormField label="Amount" value={detailForm.amount} onChangeText={(value) => setDetailForm((current) => ({ ...current, amount: value }))} keyboardType="decimal-pad" />
             <FormField label="Currency" value={detailForm.currency} onChangeText={(value) => setDetailForm((current) => ({ ...current, currency: (value.toUpperCase() as SupportedCurrency) || current.currency }))} hint={`Supported: ${SUPPORTED_CURRENCIES.join(', ')}`} />
             <FormField label="Date" value={detailForm.incurred_on} onChangeText={(value) => setDetailForm((current) => ({ ...current, incurred_on: value }))} />
-            <FormField label="Split type" value={detailForm.split_type} onChangeText={(value) => setDetailForm((current) => ({ ...current, split_type: value === 'manual' ? 'manual' : 'equal' }))} hint="Use equal or manual" />
+            <SelectField
+              label="How should this split work?"
+              value={detailForm.split_type}
+              options={GROUP_SPLIT_OPTIONS}
+              onChange={(value) =>
+                setDetailForm((current) => ({
+                  ...current,
+                  split_type: value === 'manual' ? 'manual' : 'equal',
+                }))
+              }
+            />
             {detailForm.split_type === 'manual' ? (
               <View style={styles.manualWrap}>
                 {detailForm.manual_splits.map((split) => (

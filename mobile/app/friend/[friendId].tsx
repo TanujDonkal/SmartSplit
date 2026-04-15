@@ -5,6 +5,7 @@ import { AppScreen } from '@/components/AppScreen';
 import { FormField } from '@/components/FormField';
 import { NoticeText } from '@/components/NoticeText';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { SelectField } from '@/components/SelectField';
 import { SurfaceCard } from '@/components/SurfaceCard';
 import { useAuth } from '@/context/useAuth';
 import {
@@ -60,6 +61,13 @@ function getOptionFromExpense(
 
   return paidByMe ? 'you_paid_equal' : 'friend_paid_equal';
 }
+
+const FRIEND_SPLIT_OPTIONS: Array<{ label: string; value: FriendExpenseOption }> = [
+  { label: 'You paid, split equally', value: 'you_paid_equal' },
+  { label: 'Friend paid, split equally', value: 'friend_paid_equal' },
+  { label: 'You paid, friend owes full amount', value: 'you_paid_full' },
+  { label: 'Friend paid, you owe full amount', value: 'friend_paid_full' },
+];
 
 export default function FriendDetailScreen() {
   const params = useLocalSearchParams<{ friendId: string }>();
@@ -499,16 +507,16 @@ export default function FriendDetailScreen() {
               onChangeText={(value) => setForm((current) => ({ ...current, incurred_on: value }))}
               placeholder="YYYY-MM-DD"
             />
-            <FormField
-              label="Split details"
+            <SelectField
+              label="How should this split work?"
               value={form.option}
-              onChangeText={(value) =>
+              options={FRIEND_SPLIT_OPTIONS}
+              onChange={(value) =>
                 setForm((current) => ({
                   ...current,
                   option: value as FriendExpenseOption,
                 }))
               }
-              hint="Use: you_paid_equal, friend_paid_equal, you_paid_full, friend_paid_full"
             />
             <FormField
               label="Optional note"
@@ -590,10 +598,11 @@ export default function FriendDetailScreen() {
                 value={detailForm.incurred_on}
                 onChangeText={(value) => setDetailForm((current) => ({ ...current, incurred_on: value }))}
               />
-              <FormField
-                label="Split details"
+              <SelectField
+                label="How should this split work?"
                 value={detailForm.option}
-                onChangeText={(value) =>
+                options={FRIEND_SPLIT_OPTIONS}
+                onChange={(value) =>
                   setDetailForm((current) => ({
                     ...current,
                     option: value as FriendExpenseOption,
