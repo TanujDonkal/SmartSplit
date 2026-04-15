@@ -1,4 +1,3 @@
-import 'react-native-gesture-handler';
 import { Stack, useRouter } from 'expo-router';
 import { Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
