@@ -7,6 +7,7 @@ import { AppScreen } from '@/components/AppScreen';
 import { FormField } from '@/components/FormField';
 import { NoticeText } from '@/components/NoticeText';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { SwipeToDeleteRow } from '@/components/SwipeToDeleteRow';
 import { SurfaceCard } from '@/components/SurfaceCard';
 import { useAuth } from '@/context/useAuth';
 import { api, type Friend, type FriendSummary } from '@/lib/api';
@@ -164,48 +165,57 @@ export default function FriendsScreen() {
                     : styles.neutral;
 
               return (
-                <Pressable
+                <SwipeToDeleteRow
                   key={friend.id}
-                  onPress={() => router.push(`/friend/${friend.id}`)}
-                  style={({ pressed }) => [pressed ? styles.cardPressed : null]}
+                  disabled={deletingFriendId === friend.id}
+                  onDelete={() => confirmDeleteFriend(friend)}
                 >
-                  <SurfaceCard>
-                    <View style={styles.rowTop}>
-                      <View style={styles.titleWrap}>
-                        <Text style={styles.friendName}>{friend.name}</Text>
-                        <Text style={styles.friendUsername}>@{friend.username}</Text>
+                  <Pressable
+                    onPress={() => router.push(`/friend/${friend.id}`)}
+                    style={({ pressed }) => [pressed ? styles.cardPressed : null]}
+                  >
+                    <SurfaceCard>
+                      <View style={styles.rowTop}>
+                        <View style={styles.titleWrap}>
+                          <Text style={styles.friendName}>{friend.name}</Text>
+                          <Text style={styles.friendUsername}>@{friend.username}</Text>
+                        </View>
+                        <View style={styles.iconRow}>
+                          <Pressable
+                            style={styles.iconButton}
+                            onPress={() => router.push(`/friend/${friend.id}`)}
+                          >
+                            <Ionicons name="eye-outline" size={16} color={colors.textMuted} />
+                          </Pressable>
+                          <Pressable
+                            style={styles.iconButton}
+                            onPress={() => router.push(`/friend/${friend.id}`)}
+                          >
+                            <Ionicons
+                              name="create-outline"
+                              size={16}
+                              color={colors.textMuted}
+                            />
+                          </Pressable>
+                          <Pressable
+                            style={[styles.iconButton, styles.deleteButton]}
+                            onPress={() => confirmDeleteFriend(friend)}
+                            disabled={deletingFriendId === friend.id}
+                          >
+                            <Ionicons name="trash-outline" size={16} color="#dc2626" />
+                          </Pressable>
+                        </View>
                       </View>
-                      <View style={styles.iconRow}>
-                        <Pressable
-                          style={styles.iconButton}
-                          onPress={() => router.push(`/friend/${friend.id}`)}
-                        >
-                          <Ionicons name="eye-outline" size={16} color={colors.textMuted} />
-                        </Pressable>
-                        <Pressable
-                          style={styles.iconButton}
-                          onPress={() => router.push(`/friend/${friend.id}`)}
-                        >
-                          <Ionicons name="create-outline" size={16} color={colors.textMuted} />
-                        </Pressable>
-                        <Pressable
-                          style={[styles.iconButton, styles.deleteButton]}
-                          onPress={() => confirmDeleteFriend(friend)}
-                          disabled={deletingFriendId === friend.id}
-                        >
-                          <Ionicons name="trash-outline" size={16} color="#dc2626" />
-                        </Pressable>
-                      </View>
-                    </View>
-                    <Text style={[styles.balance, tone]}>
-                      {balance > 0.005
-                        ? `${friend.name} owes you ${formatMoney(Math.abs(balance), 'CAD')}`
-                        : balance < -0.005
-                          ? `You owe ${friend.name} ${formatMoney(Math.abs(balance), 'CAD')}`
-                          : 'You are settled up'}
-                    </Text>
-                  </SurfaceCard>
-                </Pressable>
+                      <Text style={[styles.balance, tone]}>
+                        {balance > 0.005
+                          ? `${friend.name} owes you ${formatMoney(Math.abs(balance), 'CAD')}`
+                          : balance < -0.005
+                            ? `You owe ${friend.name} ${formatMoney(Math.abs(balance), 'CAD')}`
+                            : 'You are settled up'}
+                      </Text>
+                    </SurfaceCard>
+                  </Pressable>
+                </SwipeToDeleteRow>
               );
             })
           )}
