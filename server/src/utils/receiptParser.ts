@@ -10,7 +10,46 @@ type ParsedReceipt = {
 
 type OpenAiResponse = {
   output_text?: string;
+  output?: Array<{
+    content?: Array<
+      | {
+          type?: string;
+          text?: string;
+        }
+      | {
+          type?: string;
+          value?: string;
+        }
+    >;
+  }>;
 };
+
+function extractResponseText(body: OpenAiResponse) {
+  const directOutputText = body.output_text?.trim();
+
+  if (directOutputText) {
+    return directOutputText;
+  }
+
+  const fallbackText = body.output
+    ?.flatMap((item) => item.content ?? [])
+    .map((content) => {
+      if ("text" in content && typeof content.text === "string") {
+        return content.text.trim();
+      }
+
+      if ("value" in content && typeof content.value === "string") {
+        return content.value.trim();
+      }
+
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+
+  return fallbackText || "";
+}
 
 function getOpenAiConfig() {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
@@ -65,7 +104,7 @@ export async function parseReceiptImage(receiptUrl: string): Promise<ParsedRecei
             {
               type: "input_text",
               text:
-                "Extract receipt data for an expense app. Return JSON only with: description (string), amount (number or null), currency (3-letter currency code), incurred_on (ISO date string or null), note (string or null). Use the merchant or most helpful short title as description. If the currency is unclear, use CAD. If the date is unclear, return null.",
+                "Extract receipt data for an expense app. Return JSON only with: description (string), amount (number or null), currency (3-letter currency code), incurred_on (ISO date string or null), note (string or null). Use the merchant or most helpful short title as description. The amount should be the final total paid on the receipt, including tax or tip when shown. Put the purchased items or a short item summary into note. If the currency is unclear, use CAD. If the date is unclear, return null.",
             },
             {
               type: "input_image",
@@ -102,7 +141,7 @@ export async function parseReceiptImage(receiptUrl: string): Promise<ParsedRecei
   }
 
   const body = (await response.json()) as OpenAiResponse;
-  const outputText = body.output_text?.trim();
+  const outputText = extractResponseText(body);
 
   if (!outputText) {
     throw new Error("AI receipt parsing returned an empty response");

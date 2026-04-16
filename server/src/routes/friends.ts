@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authenticate } from "../middleware/auth";
-import { addFriend, getFriends } from "../controllers/friendController";
+import { addFriend, deleteFriend, getFriends } from "../controllers/friendController";
 import {
   addFriendExpense,
   addFriendExpenseComment,
@@ -18,6 +18,7 @@ router.use(authenticate);
 
 router.get("/", getFriends);
 router.post("/", addFriend);
+router.delete("/:friendId", deleteFriend);
 router.get("/:friendId/summary", getFriendSummary);
 router.post("/:friendId/settle", settleUpFriend);
 router.get("/:friendId/expenses", getFriendExpenses);
