@@ -6,6 +6,7 @@ import { AppScreen } from '@/components/AppScreen';
 import { FormField } from '@/components/FormField';
 import { NoticeText } from '@/components/NoticeText';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { SelectField } from '@/components/SelectField';
 import { SurfaceCard } from '@/components/SurfaceCard';
 import { useAuth } from '@/context/useAuth';
 import { api, SUPPORTED_CURRENCIES } from '@/lib/api';
@@ -161,16 +162,16 @@ export default function AccountScreen() {
                 value={profileForm.email}
                 onChangeText={(value) => setProfileForm((current) => ({ ...current, email: value }))}
               />
-              <FormField
+              <SelectField
                 label="Default currency"
                 value={profileForm.default_currency}
-                onChangeText={(value) =>
+                options={SUPPORTED_CURRENCIES.map((c) => ({ label: c, value: c }))}
+                onChange={(value) =>
                   setProfileForm((current) => ({
                     ...current,
-                    default_currency: value.toUpperCase(),
+                    default_currency: value,
                   }))
                 }
-                hint={`Supported: ${SUPPORTED_CURRENCIES.join(', ')}`}
               />
               <PrimaryButton
                 label="Save profile"

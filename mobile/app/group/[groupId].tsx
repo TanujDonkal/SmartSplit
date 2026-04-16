@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { AppScreen } from '@/components/AppScreen';
 import { FormField } from '@/components/FormField';
 import { NoticeText } from '@/components/NoticeText';
@@ -100,6 +101,7 @@ export default function GroupDetailScreen() {
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [isParsingReceipt, setIsParsingReceipt] = useState(false);
   const [isParsingDetailReceipt, setIsParsingDetailReceipt] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
   const group = useMemo(() => groups.find((entry) => entry.id === groupId), [groupId, groups]);
@@ -177,6 +179,13 @@ export default function GroupDetailScreen() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  async function handleRefresh() {
+    if (!groupId) return;
+    setRefreshing(true);
+    await loadGroupDetail(groupId);
+    setRefreshing(false);
   }
 
   function updateCreateSplit(userId: string, amount: string) {
@@ -433,7 +442,9 @@ export default function GroupDetailScreen() {
   }
 
   return (
-    <AppScreen safeTop={false}>
+    <AppScreen safeTop={false} refreshControl={
+      <RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} tintColor={colors.primary} />
+    }>
       {error ? <NoticeText tone="error" message={error} /> : null}
 
       <SurfaceCard>
@@ -461,7 +472,7 @@ export default function GroupDetailScreen() {
           <View style={styles.form}>
             <FormField label="Description" value={form.description} onChangeText={(value) => setForm((current) => ({ ...current, description: value }))} placeholder="Groceries" />
             <FormField label="Amount" value={form.amount} onChangeText={(value) => setForm((current) => ({ ...current, amount: value }))} keyboardType="decimal-pad" placeholder="200" />
-            <FormField label="Currency" value={form.currency} onChangeText={(value) => setForm((current) => ({ ...current, currency: (value.toUpperCase() as SupportedCurrency) || current.currency }))} hint={`Supported: ${SUPPORTED_CURRENCIES.join(', ')}`} />
+            <SelectField label="Currency" value={form.currency} options={SUPPORTED_CURRENCIES.map((c) => ({ label: c, value: c }))} onChange={(value) => setForm((current) => ({ ...current, currency: value as SupportedCurrency }))} />
             <FormField label="Date" value={form.incurred_on} onChangeText={(value) => setForm((current) => ({ ...current, incurred_on: value }))} placeholder="YYYY-MM-DD" />
             <SelectField
               label="How should this split work?"
@@ -487,6 +498,7 @@ export default function GroupDetailScreen() {
               <PrimaryButton label={isParsingReceipt ? 'Parsing receipt...' : 'Parse receipt with AI'} onPress={() => void handleParseReceipt('create')} loading={isParsingReceipt} disabled={!form.receipt_data} />
             </View>
             {form.receipt_data ? <Image source={{ uri: form.receipt_data }} style={styles.receiptImage} /> : null}
+            {error ? <NoticeText tone="error" message={error} /> : null}
             <PrimaryButton label={isAddingExpense ? 'Saving expense...' : 'Save expense'} onPress={() => void handleAddExpense()} loading={isAddingExpense} />
           </View>
         </SurfaceCard>
@@ -507,7 +519,7 @@ export default function GroupDetailScreen() {
           <View style={styles.form}>
             <FormField label="Description" value={detailForm.description} onChangeText={(value) => setDetailForm((current) => ({ ...current, description: value }))} />
             <FormField label="Amount" value={detailForm.amount} onChangeText={(value) => setDetailForm((current) => ({ ...current, amount: value }))} keyboardType="decimal-pad" />
-            <FormField label="Currency" value={detailForm.currency} onChangeText={(value) => setDetailForm((current) => ({ ...current, currency: (value.toUpperCase() as SupportedCurrency) || current.currency }))} hint={`Supported: ${SUPPORTED_CURRENCIES.join(', ')}`} />
+            <SelectField label="Currency" value={detailForm.currency} options={SUPPORTED_CURRENCIES.map((c) => ({ label: c, value: c }))} onChange={(value) => setDetailForm((current) => ({ ...current, currency: value as SupportedCurrency }))} />
             <FormField label="Date" value={detailForm.incurred_on} onChangeText={(value) => setDetailForm((current) => ({ ...current, incurred_on: value }))} />
             <SelectField
               label="How should this split work?"
@@ -533,6 +545,7 @@ export default function GroupDetailScreen() {
               <PrimaryButton label={isParsingDetailReceipt ? 'Parsing receipt...' : 'Parse receipt with AI'} onPress={() => void handleParseReceipt('edit')} loading={isParsingDetailReceipt} disabled={!detailForm.receipt_data} />
             </View>
             {detailForm.receipt_data ? <Image source={{ uri: detailForm.receipt_data }} style={styles.receiptImage} /> : null}
+            {error ? <NoticeText tone="error" message={error} /> : null}
             <PrimaryButton label={isUpdatingExpense ? 'Saving changes...' : 'Save changes'} onPress={() => void handleUpdateExpense()} loading={isUpdatingExpense} />
             <PrimaryButton label={isDeletingExpense ? 'Deleting expense...' : 'Delete expense'} tone="danger" onPress={() => void handleDeleteExpense()} loading={isDeletingExpense} />
           </View>
@@ -614,14 +627,40 @@ export default function GroupDetailScreen() {
         <Text style={styles.sectionTitle}>Recent activity</Text>
         <View style={styles.list}>
           {sortedExpenses.length === 0 ? <Text style={styles.helper}>No expenses added yet.</Text> : sortedExpenses.map((expense) => (
-            <Pressable key={expense.id} style={styles.listCard} onPress={() => void openExpenseDetail(expense.id)}>
-              <Text style={styles.listTitle}>{expense.description}</Text>
+            <View key={expense.id} style={styles.listCard}>
+              <View style={styles.listCardHeader}>
+                <Pressable style={{ flex: 1 }} onPress={() => void openExpenseDetail(expense.id)}>
+                  <Text style={styles.listTitle}>{expense.description}</Text>
+                </Pressable>
+                <View style={styles.listCardIcons}>
+                  <Pressable hitSlop={8} onPress={() => void openExpenseDetail(expense.id)}>
+                    <Ionicons name="create-outline" size={20} color={colors.primary} />
+                  </Pressable>
+                  <Pressable hitSlop={8} onPress={() => {
+                    Alert.alert('Delete expense', `Delete "${expense.description}"?`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Delete', style: 'destructive', onPress: () => {
+                        void (async () => {
+                          try {
+                            await api.deleteExpense(expense.id);
+                            await loadGroupDetail(groupId!);
+                          } catch (err) {
+                            setError(err instanceof Error ? err.message : 'Unable to delete');
+                          }
+                        })();
+                      }},
+                    ]);
+                  }}>
+                    <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                  </Pressable>
+                </View>
+              </View>
               <Text style={styles.listMeta}>Paid by {expense.payer.name} on {new Date(expense.incurred_on).toLocaleDateString()}</Text>
               <Text style={styles.listAmount}>{formatMoney(Number(expense.amount), expense.currency)}</Text>
               {expense.note ? <Text style={styles.listNote}>{expense.note}</Text> : null}
               <Text style={styles.listMeta}>{inferSplitType(expense, group.members.length) === 'equal' ? 'Equal split' : 'Manual split'}</Text>
               {expense.receipt_data ? <Text style={styles.receiptTag}>Receipt attached</Text> : null}
-            </Pressable>
+            </View>
           ))}
         </View>
       </SurfaceCard>
@@ -639,6 +678,8 @@ const styles = StyleSheet.create({
   manualWrap: { gap: spacing.sm },
   list: { marginTop: spacing.md, gap: spacing.sm },
   listCard: { borderRadius: 18, backgroundColor: '#f7f8f4', padding: spacing.md },
+  listCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  listCardIcons: { flexDirection: 'row', gap: spacing.md },
   memberSuggestion: { borderRadius: 18, backgroundColor: '#f7f8f4', padding: spacing.md, gap: spacing.sm },
   listTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
   listMeta: { marginTop: 4, fontSize: 13, color: colors.textMuted },

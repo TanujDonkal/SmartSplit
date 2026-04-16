@@ -1,15 +1,23 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import type { PropsWithChildren, ReactNode } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
+  type RefreshControlProps,
+} from 'react-native';
+import type { PropsWithChildren, ReactElement, ReactNode } from 'react';
 import { colors, spacing } from '@/theme/tokens';
 
 type AppScreenProps = PropsWithChildren<{
   scrollable?: boolean;
   footer?: ReactNode;
   safeTop?: boolean;
+  refreshControl?: ReactElement<RefreshControlProps>;
 }>;
 
-export function AppScreen({ children, scrollable = true, footer, safeTop = true }: AppScreenProps) {
+export function AppScreen({ children, scrollable = true, footer, safeTop = true, refreshControl }: AppScreenProps) {
   const edges: ('top' | 'left' | 'right')[] = safeTop
     ? ['top', 'left', 'right']
     : ['left', 'right'];
@@ -19,6 +27,7 @@ export function AppScreen({ children, scrollable = true, footer, safeTop = true 
       keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
+      refreshControl={refreshControl}
     >
       {children}
     </ScrollView>

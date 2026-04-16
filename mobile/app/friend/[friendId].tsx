@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { AppScreen } from '@/components/AppScreen';
 import { FormField } from '@/components/FormField';
 import { NoticeText } from '@/components/NoticeText';
@@ -91,6 +92,7 @@ export default function FriendDetailScreen() {
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [isParsingReceipt, setIsParsingReceipt] = useState(false);
   const [isParsingDetailReceipt, setIsParsingDetailReceipt] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -394,11 +396,19 @@ export default function FriendDetailScreen() {
     try {
       await api.settleUpFriend(friendId);
       await loadFriendDetail(friendId);
+      Alert.alert('Settled up!', `You and ${summary?.friend.name} are now settled up.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to settle up');
     } finally {
       setIsSettlingUp(false);
     }
+  }
+
+  async function handleRefresh() {
+    if (!friendId) return;
+    setRefreshing(true);
+    await loadFriendDetail(friendId);
+    setRefreshing(false);
   }
 
   function getExpenseSummary(expense: FriendExpense) {
@@ -452,7 +462,9 @@ export default function FriendDetailScreen() {
   const selectedIsSettlement = selectedExpense?.activity_type === 'SETTLEMENT';
 
   return (
-    <AppScreen safeTop={false}>
+    <AppScreen safeTop={false} refreshControl={
+      <RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} tintColor={colors.primary} />
+    }>
       {error ? <NoticeText tone="error" message={error} /> : null}
 
       <SurfaceCard>
@@ -508,16 +520,16 @@ export default function FriendDetailScreen() {
               keyboardType="decimal-pad"
               placeholder="20"
             />
-            <FormField
+            <SelectField
               label="Currency"
               value={form.currency}
-              onChangeText={(value) =>
+              options={SUPPORTED_CURRENCIES.map((c) => ({ label: c, value: c }))}
+              onChange={(value) =>
                 setForm((current) => ({
                   ...current,
-                  currency: (value.toUpperCase() as SupportedCurrency) || current.currency,
+                  currency: value as SupportedCurrency,
                 }))
               }
-              hint={`Supported: ${SUPPORTED_CURRENCIES.join(', ')}`}
             />
             <FormField
               label="Date"
@@ -600,16 +612,16 @@ export default function FriendDetailScreen() {
                 onChangeText={(value) => setDetailForm((current) => ({ ...current, amount: value }))}
                 keyboardType="decimal-pad"
               />
-              <FormField
+              <SelectField
                 label="Currency"
                 value={detailForm.currency}
-                onChangeText={(value) =>
+                options={SUPPORTED_CURRENCIES.map((c) => ({ label: c, value: c }))}
+                onChange={(value) =>
                   setDetailForm((current) => ({
                     ...current,
-                    currency: (value.toUpperCase() as SupportedCurrency) || current.currency,
+                    currency: value as SupportedCurrency,
                   }))
                 }
-                hint={`Supported: ${SUPPORTED_CURRENCIES.join(', ')}`}
               />
               <FormField
                 label="Date"
@@ -702,12 +714,34 @@ export default function FriendDetailScreen() {
             <Text style={styles.helper}>No direct activity yet with {summary.friend.name}.</Text>
           ) : (
             sortedExpenses.map((expense) => (
-              <Pressable
-                key={expense.id}
-                style={styles.listCard}
-                onPress={() => void openExpenseDetail(expense.id)}
-              >
-                <Text style={styles.listTitle}>{expense.description}</Text>
+              <View key={expense.id} style={styles.listCard}>
+                <View style={styles.listCardHeader}>
+                  <Pressable style={{ flex: 1 }} onPress={() => void openExpenseDetail(expense.id)}>
+                    <Text style={styles.listTitle}>{expense.description}</Text>
+                  </Pressable>
+                  <View style={styles.listCardIcons}>
+                    <Pressable hitSlop={8} onPress={() => void openExpenseDetail(expense.id)}>
+                      <Ionicons name="create-outline" size={20} color={colors.primary} />
+                    </Pressable>
+                    <Pressable hitSlop={8} onPress={() => {
+                      Alert.alert('Delete expense', `Delete "${expense.description}"?`, [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Delete', style: 'destructive', onPress: () => {
+                          void (async () => {
+                            try {
+                              await api.deleteFriendExpense(friendId!, expense.id);
+                              await loadFriendDetail(friendId!);
+                            } catch (err) {
+                              setError(err instanceof Error ? err.message : 'Unable to delete');
+                            }
+                          })();
+                        }},
+                      ]);
+                    }}>
+                      <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                    </Pressable>
+                  </View>
+                </View>
                 <Text style={styles.listMeta}>
                   {expense.activity_type === 'SETTLEMENT' ? 'Settlement' : `${expense.payer.name} paid`} on{' '}
                   {new Date(expense.incurred_on).toLocaleDateString()}
@@ -720,7 +754,7 @@ export default function FriendDetailScreen() {
                 {expense.receipt_data ? (
                   <Text style={styles.receiptTag}>Receipt attached</Text>
                 ) : null}
-              </Pressable>
+              </View>
             ))
           )}
         </View>
@@ -804,6 +838,15 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: '#f7f8f4',
     padding: spacing.md,
+  },
+  listCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  listCardIcons: {
+    flexDirection: 'row',
+    gap: spacing.md,
   },
   listTitle: {
     fontSize: 18,

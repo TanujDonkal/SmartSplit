@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/AppHeader';
 import { AppScreen } from '@/components/AppScreen';
@@ -24,6 +24,7 @@ export default function GroupsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [deletingGroupId, setDeletingGroupId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -63,6 +64,12 @@ export default function GroupsScreen() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await loadGroups();
+    setRefreshing(false);
   }
 
   async function handleCreateGroup() {
@@ -123,7 +130,9 @@ export default function GroupsScreen() {
         : 'Overall, you are settled up in CAD';
 
   return (
-    <AppScreen>
+    <AppScreen refreshControl={
+      <RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} tintColor={colors.primary} />
+    }>
       <AppHeader />
 
       <SurfaceCard>
