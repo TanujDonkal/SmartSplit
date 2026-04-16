@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/AppHeader';
 import { AppScreen } from '@/components/AppScreen';
@@ -21,6 +21,7 @@ export default function ActivityScreen() {
   const [recentExpenses, setRecentExpenses] = useState<DashboardExpense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -62,6 +63,12 @@ export default function ActivityScreen() {
     }
   }
 
+  async function handleRefresh() {
+    setRefreshing(true);
+    await loadActivity();
+    setRefreshing(false);
+  }
+
   function confirmDeleteExpense(expense: DashboardExpense) {
     Alert.alert(
       'Delete activity',
@@ -94,7 +101,9 @@ export default function ActivityScreen() {
   const groupMap = useMemo(() => Object.fromEntries(groups.map((group) => [group.id, group])), [groups]);
 
   return (
-    <AppScreen>
+    <AppScreen refreshControl={
+      <RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} tintColor={colors.primary} />
+    }>
       <AppHeader />
 
       <SurfaceCard>

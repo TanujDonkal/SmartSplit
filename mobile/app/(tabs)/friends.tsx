@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppHeader } from '@/components/AppHeader';
 import { AppScreen } from '@/components/AppScreen';
@@ -23,6 +23,7 @@ export default function FriendsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingFriend, setIsAddingFriend] = useState(false);
   const [deletingFriendId, setDeletingFriendId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -54,6 +55,12 @@ export default function FriendsScreen() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await loadFriends();
+    setRefreshing(false);
   }
 
   async function handleAddFriend() {
@@ -106,7 +113,9 @@ export default function FriendsScreen() {
   }
 
   return (
-    <AppScreen>
+    <AppScreen refreshControl={
+      <RefreshControl refreshing={refreshing} onRefresh={() => void handleRefresh()} tintColor={colors.primary} />
+    }>
       <AppHeader />
 
       <SurfaceCard>
