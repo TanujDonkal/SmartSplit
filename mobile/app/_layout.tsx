@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from '@/context/AuthContext';
+import { FloatingAddExpenseButton } from '@/components/FloatingAddExpenseButton';
 import { colors } from '@/theme/tokens';
 
 function BackButton() {
@@ -58,6 +59,7 @@ export default function RootLayout() {
           />
           <Stack.Screen name="assistant" options={{ ...headerWithBack, title: 'Assistant' }} />
         </Stack>
+        <FloatingAddExpenseButton />
       </AuthProvider>
     </GestureHandlerRootView>
   );
