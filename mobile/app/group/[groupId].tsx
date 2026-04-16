@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '@/components/AppScreen';
 import { FormField } from '@/components/FormField';
@@ -75,7 +75,8 @@ const GROUP_SPLIT_OPTIONS: Array<{ label: string; value: 'equal' | 'manual' }> =
 ];
 
 export default function GroupDetailScreen() {
-  const params = useLocalSearchParams<{ groupId: string }>();
+  const params = useLocalSearchParams<{ groupId: string; compose?: string; composeKey?: string }>();
+  const router = useRouter();
   const { user } = useAuth();
   const groupId = Array.isArray(params.groupId) ? params.groupId[0] : params.groupId;
   const defaultCurrency = (user?.default_currency as SupportedCurrency | undefined) ?? 'CAD';
@@ -145,6 +146,15 @@ export default function GroupDetailScreen() {
     });
     setCommentBody('');
   }, [group, selectedExpense]);
+
+  useEffect(() => {
+    if (params.compose !== 'expense') {
+      return;
+    }
+
+    setSelectedExpense(null);
+    setShowAddExpenseForm(true);
+  }, [params.compose, params.composeKey]);
 
   async function loadGroupDetail(id: string) {
     setIsLoading(true);
@@ -432,7 +442,15 @@ export default function GroupDetailScreen() {
         <View style={styles.actions}>
           <PrimaryButton
             label={showAddExpenseForm ? 'Close form' : 'Add expense'}
-            onPress={() => setShowAddExpenseForm((current) => !current)}
+            onPress={() => {
+              setShowAddExpenseForm((current) => {
+                const next = !current;
+                if (!next) {
+                  router.setParams({ compose: undefined, composeKey: undefined });
+                }
+                return next;
+              });
+            }}
           />
         </View>
       </SurfaceCard>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '@/components/AppScreen';
 import { FormField } from '@/components/FormField';
@@ -70,7 +70,8 @@ const FRIEND_SPLIT_OPTIONS: Array<{ label: string; value: FriendExpenseOption }>
 ];
 
 export default function FriendDetailScreen() {
-  const params = useLocalSearchParams<{ friendId: string }>();
+  const params = useLocalSearchParams<{ friendId: string; compose?: string; composeKey?: string }>();
+  const router = useRouter();
   const { user } = useAuth();
   const friendId = Array.isArray(params.friendId) ? params.friendId[0] : params.friendId;
   const defaultCurrency = (user?.default_currency as SupportedCurrency | undefined) ?? 'CAD';
@@ -123,6 +124,15 @@ export default function FriendDetailScreen() {
     });
     setCommentBody('');
   }, [selectedExpense, user?.id]);
+
+  useEffect(() => {
+    if (params.compose !== 'expense') {
+      return;
+    }
+
+    setSelectedExpense(null);
+    setShowAddExpenseForm(true);
+  }, [params.compose, params.composeKey]);
 
   const sortedExpenses = useMemo(
     () =>
@@ -468,7 +478,15 @@ export default function FriendDetailScreen() {
           <PrimaryButton
             label={showAddExpenseForm ? 'Close form' : 'Add expense'}
             tone="ghost"
-            onPress={() => setShowAddExpenseForm((current) => !current)}
+            onPress={() => {
+              setShowAddExpenseForm((current) => {
+                const next = !current;
+                if (!next) {
+                  router.setParams({ compose: undefined, composeKey: undefined });
+                }
+                return next;
+              });
+            }}
           />
         </View>
       </SurfaceCard>
