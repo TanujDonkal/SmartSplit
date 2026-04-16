@@ -273,14 +273,22 @@ select {
 }
 
 @media (min-width: 1024px) {
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+
   .app-shell {
-    min-height: 100vh;
+    height: 100vh;
     padding: 1.25rem;
+    overflow: hidden;
   }
 
   .mobile-shell {
-    min-height: calc(100vh - 2.5rem);
-    max-height: calc(100vh - 2.5rem);
+    height: calc(100vh - 2.5rem);
+    min-height: 0;
     border: 1px solid rgba(214, 215, 210, 0.78);
     border-radius: 2rem;
     box-shadow: 0 24px 70px rgba(31, 41, 55, 0.08);
