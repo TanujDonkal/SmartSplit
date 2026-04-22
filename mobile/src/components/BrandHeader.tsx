@@ -18,6 +18,7 @@ export function BrandHeader({ variant = 'full' }: BrandHeaderProps) {
       <Image
         source={{ uri: 'https://smart-split-expanse.vercel.app/smartsplit-logo.png' }}
         style={styles.logo}
+        resizeMode="contain"
       />
     </View>
   );

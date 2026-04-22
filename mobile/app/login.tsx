@@ -67,7 +67,7 @@ export default function LoginScreen() {
   }
 
   return (
-    <AppScreen scrollable={false}>
+    <AppScreen>
       <SurfaceCard>
         <BrandHeader variant="mark" />
         <Text style={styles.heading}>Log in</Text>

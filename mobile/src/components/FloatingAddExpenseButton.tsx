@@ -18,6 +18,8 @@ type ShortcutState = {
   groups: Group[];
 };
 
+type FriendPickerMode = 'expense' | 'scan' | null;
+
 const HIDDEN_PATHS = new Set(['/', '/login', '/register', '/forgot-password', '/account']);
 
 export function FloatingAddExpenseButton() {
@@ -28,6 +30,7 @@ export function FloatingAddExpenseButton() {
   const [shortcutState, setShortcutState] = useState<ShortcutState>({ friends: [], groups: [] });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [friendPickerMode, setFriendPickerMode] = useState<FriendPickerMode>(null);
 
   const shouldHide = useMemo(() => {
     if (!pathname) {
@@ -57,6 +60,7 @@ export function FloatingAddExpenseButton() {
 
   async function openSheet() {
     setSheetVisible(true);
+    setFriendPickerMode(null);
 
     if (shortcutState.friends.length === 0 && shortcutState.groups.length === 0 && !isLoading) {
       await loadShortcuts();
@@ -66,17 +70,19 @@ export function FloatingAddExpenseButton() {
   function closeSheet() {
     setSheetVisible(false);
     setError('');
+    setFriendPickerMode(null);
   }
 
-  function openFriendExpenseShortcut() {
+  function openFriendExpenseShortcut(friendId?: string) {
     closeSheet();
 
-    const firstFriend = shortcutState.friends[0];
-    if (firstFriend) {
+    const selectedFriend =
+      shortcutState.friends.find((friend) => friend.id === friendId) ?? shortcutState.friends[0];
+    if (selectedFriend) {
       router.push({
         pathname: '/friend/[friendId]',
         params: {
-          friendId: firstFriend.id,
+          friendId: selectedFriend.id,
           compose: 'expense',
           composeKey: String(Date.now()),
         },
@@ -85,6 +91,51 @@ export function FloatingAddExpenseButton() {
     }
 
     router.push('/friends');
+  }
+
+  function openScanReceiptShortcut(friendId?: string) {
+    closeSheet();
+
+    const selectedFriend =
+      shortcutState.friends.find((friend) => friend.id === friendId) ?? shortcutState.friends[0];
+    if (selectedFriend) {
+      router.push({
+        pathname: '/friend/[friendId]',
+        params: {
+          friendId: selectedFriend.id,
+          compose: 'expense',
+          composeKey: String(Date.now()),
+          scan: 'receipt',
+          scanKey: String(Date.now()),
+        },
+      });
+      return;
+    }
+
+    router.push('/friends');
+  }
+
+  function startFriendPicker(mode: Exclude<FriendPickerMode, null>) {
+    if (isLoading) {
+      return;
+    }
+
+    if (shortcutState.friends.length === 0) {
+      closeSheet();
+      router.push('/friends');
+      return;
+    }
+
+    setFriendPickerMode(mode);
+  }
+
+  function pickFriend(friendId: string) {
+    if (friendPickerMode === 'scan') {
+      openScanReceiptShortcut(friendId);
+      return;
+    }
+
+    openFriendExpenseShortcut(friendId);
   }
 
   function openGroupExpenseShortcut() {
@@ -144,7 +195,9 @@ export function FloatingAddExpenseButton() {
           >
             <Text style={styles.sheetTitle}>Add expense</Text>
             <Text style={styles.sheetText}>
-              Jump straight into your existing friend or group expense flow.
+              {friendPickerMode
+                ? 'Choose which friend this should be for.'
+                : 'Jump straight into your existing friend or group expense flow.'}
             </Text>
 
             {isLoading ? (
@@ -156,35 +209,74 @@ export function FloatingAddExpenseButton() {
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-            <Pressable style={styles.optionCard} onPress={openFriendExpenseShortcut}>
-              <View style={styles.optionIcon}>
-                <Ionicons name="people-outline" size={18} color={colors.secondary} />
-              </View>
-              <View style={styles.optionBody}>
-                <Text style={styles.optionTitle}>Friend expense</Text>
-                <Text style={styles.optionMeta}>
-                  {shortcutState.friends[0]
-                    ? `Open ${shortcutState.friends[0].name}'s expense form`
-                    : 'Go to Friends and pick who this is for'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </Pressable>
+            {friendPickerMode ? (
+              <>
+                <Pressable style={styles.backButton} onPress={() => setFriendPickerMode(null)}>
+                  <Ionicons name="chevron-back" size={16} color={colors.textMuted} />
+                  <Text style={styles.backButtonText}>Back</Text>
+                </Pressable>
 
-            <Pressable style={styles.optionCard} onPress={openGroupExpenseShortcut}>
-              <View style={styles.optionIcon}>
-                <Ionicons name="albums-outline" size={18} color={colors.secondary} />
-              </View>
-              <View style={styles.optionBody}>
-                <Text style={styles.optionTitle}>Group expense</Text>
-                <Text style={styles.optionMeta}>
-                  {shortcutState.groups[0]
-                    ? `Open ${shortcutState.groups[0].name}'s expense form`
-                    : 'Go to Groups and pick where to add it'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </Pressable>
+                {shortcutState.friends.map((friend) => (
+                  <Pressable
+                    key={friend.id}
+                    style={styles.optionCard}
+                    onPress={() => pickFriend(friend.id)}
+                  >
+                    <View style={styles.optionIcon}>
+                      <Ionicons name="person-outline" size={18} color={colors.secondary} />
+                    </View>
+                    <View style={styles.optionBody}>
+                      <Text style={styles.optionTitle}>{friend.name}</Text>
+                      <Text style={styles.optionMeta}>@{friend.username}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                  </Pressable>
+                ))}
+              </>
+            ) : (
+              <>
+                <Pressable style={styles.optionCard} onPress={() => startFriendPicker('expense')}>
+                  <View style={styles.optionIcon}>
+                    <Ionicons name="people-outline" size={18} color={colors.secondary} />
+                  </View>
+                  <View style={styles.optionBody}>
+                    <Text style={styles.optionTitle}>Friend expense</Text>
+                    <Text style={styles.optionMeta}>
+                      Choose a friend, then open their direct expense form
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </Pressable>
+
+                <Pressable style={styles.optionCard} onPress={() => startFriendPicker('scan')}>
+                  <View style={styles.optionIcon}>
+                    <Ionicons name="scan-outline" size={18} color={colors.secondary} />
+                  </View>
+                  <View style={styles.optionBody}>
+                    <Text style={styles.optionTitle}>Scan receipt</Text>
+                    <Text style={styles.optionMeta}>
+                      Choose a friend, then attach a receipt to their expense
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </Pressable>
+
+                <Pressable style={styles.optionCard} onPress={openGroupExpenseShortcut}>
+                  <View style={styles.optionIcon}>
+                    <Ionicons name="albums-outline" size={18} color={colors.secondary} />
+                  </View>
+                  <View style={styles.optionBody}>
+                    <Text style={styles.optionTitle}>Group expense</Text>
+                    <Text style={styles.optionMeta}>
+                      {shortcutState.groups[0]
+                        ? `Open ${shortcutState.groups[0].name}'s expense form`
+                        : 'Go to Groups and pick where to add it'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </Pressable>
+              </>
+            )}
           </Pressable>
         </Pressable>
       </Modal>
@@ -247,6 +339,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: colors.danger,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  backButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textMuted,
   },
   optionCard: {
     flexDirection: 'row',
