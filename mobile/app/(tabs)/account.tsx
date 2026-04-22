@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { AppHeader } from '@/components/AppHeader';
 import { AppScreen } from '@/components/AppScreen';
@@ -15,6 +15,9 @@ import { colors, spacing } from '@/theme/tokens';
 
 export default function AccountScreen() {
   const router = useRouter();
+  const privacyHref = '/privacy' as Href;
+  const supportHref = '/support' as Href;
+  const deleteAccountHref = '/delete-account-info' as Href;
   const { token, user, updateUser, logout } = useAuth();
   const [profileForm, setProfileForm] = useState({
     name: '',
@@ -196,6 +199,26 @@ export default function AccountScreen() {
                     router.replace('/login');
                   })()
                 }
+              />
+            </View>
+          </SurfaceCard>
+
+          <SurfaceCard>
+            <Text style={styles.sectionTitle}>Privacy and support</Text>
+            <Text style={styles.sectionBody}>
+              Review SmartSplit privacy details, support contact information, and deletion guidance.
+            </Text>
+            <View style={styles.form}>
+              <PrimaryButton
+                label="Privacy policy"
+                tone="ghost"
+                onPress={() => router.push(privacyHref)}
+              />
+              <PrimaryButton label="Support" tone="ghost" onPress={() => router.push(supportHref)} />
+              <PrimaryButton
+                label="Deletion help"
+                tone="ghost"
+                onPress={() => router.push(deleteAccountHref)}
               />
             </View>
           </SurfaceCard>

@@ -1,4 +1,4 @@
-import { Link, useRouter } from 'expo-router';
+import { Link, useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '@/components/AppScreen';
@@ -11,6 +11,9 @@ import { colors, spacing } from '@/theme/tokens';
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const privacyHref = '/privacy' as Href;
+  const supportHref = '/support' as Href;
+  const deleteAccountHref = '/delete-account-info' as Href;
   const [form, setForm] = useState({
     name: '',
     username: '',
@@ -115,6 +118,27 @@ export default function RegisterScreen() {
             onPress={() => void handleRegister()}
             loading={isSubmitting}
           />
+          <Text style={styles.helper}>
+            By creating an account, you can review the Privacy Policy, Support details, and
+            account deletion steps at any time.
+          </Text>
+          <View style={styles.linkRow}>
+            <Link href={privacyHref} asChild>
+              <Pressable>
+                <Text style={styles.legalLink}>Privacy Policy</Text>
+              </Pressable>
+            </Link>
+            <Link href={supportHref} asChild>
+              <Pressable>
+                <Text style={styles.legalLink}>Support</Text>
+              </Pressable>
+            </Link>
+            <Link href={deleteAccountHref} asChild>
+              <Pressable>
+                <Text style={styles.legalLink}>Delete Account</Text>
+              </Pressable>
+            </Link>
+          </View>
           <Link href="/login" asChild>
             <Pressable>
               <Text style={styles.link}>Already have an account? Log in</Text>
@@ -140,6 +164,22 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 14,
     lineHeight: 22,
+  },
+  helper: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: colors.textMuted,
+  },
+  linkRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
+  legalLink: {
+    color: colors.primaryDark,
+    fontSize: 13,
+    fontWeight: '700',
   },
   link: {
     textAlign: 'center',

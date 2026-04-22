@@ -38,6 +38,12 @@ export default function RootLayout() {
           <Stack.Screen name="index" />
           <Stack.Screen name="login" options={{ ...headerWithBack, title: 'Log in' }} />
           <Stack.Screen name="register" options={{ ...headerWithBack, title: 'Sign up' }} />
+          <Stack.Screen name="privacy" options={{ ...headerWithBack, title: 'Privacy policy' }} />
+          <Stack.Screen name="support" options={{ ...headerWithBack, title: 'Support' }} />
+          <Stack.Screen
+            name="delete-account-info"
+            options={{ ...headerWithBack, title: 'Delete account' }}
+          />
           <Stack.Screen
             name="forgot-password"
             options={{ ...headerWithBack, title: 'Forgot Password' }}
