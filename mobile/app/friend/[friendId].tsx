@@ -71,7 +71,13 @@ const FRIEND_SPLIT_OPTIONS: Array<{ label: string; value: FriendExpenseOption }>
 ];
 
 export default function FriendDetailScreen() {
-  const params = useLocalSearchParams<{ friendId: string; compose?: string; composeKey?: string }>();
+  const params = useLocalSearchParams<{
+    friendId: string;
+    compose?: string;
+    composeKey?: string;
+    scan?: string;
+    scanKey?: string;
+  }>();
   const router = useRouter();
   const { user } = useAuth();
   const friendId = Array.isArray(params.friendId) ? params.friendId[0] : params.friendId;
@@ -135,6 +141,17 @@ export default function FriendDetailScreen() {
     setSelectedExpense(null);
     setShowAddExpenseForm(true);
   }, [params.compose, params.composeKey]);
+
+  useEffect(() => {
+    if (params.scan !== 'receipt') {
+      return;
+    }
+
+    setSelectedExpense(null);
+    setShowAddExpenseForm(true);
+    void handlePickReceipt('create');
+    router.setParams({ scan: undefined, scanKey: undefined });
+  }, [params.scan, params.scanKey]);
 
   const sortedExpenses = useMemo(
     () =>
