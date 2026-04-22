@@ -24,7 +24,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#fffdfa"
       },
-      "package": "com.smartsplit.mobile"
+      "package": "com.smartsplit.mobile",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
@@ -32,7 +33,14 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SmartSplit needs access to your photo library so you can upload receipt images.",
+          "mediaLibraryPermission": "SmartSplit needs access to your media library so you can upload receipt images."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

@@ -120,6 +120,18 @@ export default function Home() {
                 </span>
               ))}
             </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-3 text-sm font-medium text-slate-500 lg:justify-start">
+              <Link className="text-[#2b938c] underline underline-offset-2" to="/privacy">
+                Privacy Policy
+              </Link>
+              <Link className="text-[#2b938c] underline underline-offset-2" to="/support">
+                Support
+              </Link>
+              <Link className="text-[#2b938c] underline underline-offset-2" to="/delete-account">
+                Delete Account
+              </Link>
+            </div>
           </div>
         </section>
       </div>

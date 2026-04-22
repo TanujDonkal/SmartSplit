@@ -224,6 +224,25 @@ export default function Register() {
                 {isSubmitting ? 'Creating account...' : 'Next'}
               </button>
             </form>
+
+            <p className="mt-5 text-sm leading-7 text-slate-500">
+              By creating an account, you can review the{' '}
+              <Link to="/privacy" className="font-semibold text-[#2b938c] underline underline-offset-2">
+                Privacy Policy
+              </Link>{' '}
+              and{' '}
+              <Link to="/support" className="font-semibold text-[#2b938c] underline underline-offset-2">
+                Support
+              </Link>{' '}
+              details at any time. Account deletion steps are available{' '}
+              <Link
+                to="/delete-account"
+                className="font-semibold text-[#2b938c] underline underline-offset-2"
+              >
+                here
+              </Link>
+              .
+            </p>
           </div>
         </div>
       </div>
