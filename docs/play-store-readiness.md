@@ -52,6 +52,7 @@
 
 - `docs/google-play-console-draft.md`
 - `docs/google-play-test-plan.md`
+- `docs/android-release-build.md`
 - `client/src/pages/PrivacyPolicy.tsx`
 - `client/src/pages/Support.tsx`
 - `client/src/pages/DeleteAccountInfo.tsx`
