@@ -8,6 +8,11 @@
 - Home page links to public legal/support pages
 - Android app config updated with `versionCode`
 - Expo image picker plugin configured with clearer permission messaging
+- EAS Android build config for internal APK and Play Store AAB builds
+- Root scripts for Android APK and AAB build commands
+- Draft Google Play Console copy and data-safety notes
+- Android test plan for pre-release validation
+- In-app AI disclosure and support route
 
 ## Product flows that should work before release
 
@@ -38,7 +43,16 @@
 ## Remaining engineering work before launch
 
 - Verify all key flows on at least two physical Android devices
-- Review AI assistant output and decide what moderation or fallback policy is required
+- Review AI assistant output and decide whether stronger moderation or reporting flows are needed
 - Confirm receipt parsing failure states are clear and recoverable
 - Confirm backend rate limits, uptime, and error handling are acceptable for public users
 - Decide the final support email and replace it in the legal config if needed
+
+## Helpful files in this branch
+
+- `docs/google-play-console-draft.md`
+- `docs/google-play-test-plan.md`
+- `docs/android-release-build.md`
+- `client/src/pages/PrivacyPolicy.tsx`
+- `client/src/pages/Support.tsx`
+- `client/src/pages/DeleteAccountInfo.tsx`

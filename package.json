@@ -9,6 +9,8 @@
     "dev:web": "npm --workspace client run dev",
     "dev:server": "npm --workspace server run dev",
     "dev:mobile": "npm --prefix mobile run start",
+    "build:mobile:apk": "npx eas-cli@latest build -p android --profile preview",
+    "build:mobile:aab": "npx eas-cli@latest build -p android --profile production",
     "build:web": "npm --workspace client run build",
     "build:server": "npm --workspace server run build",
     "typecheck:mobile": "npm --prefix mobile run typecheck"
