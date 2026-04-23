@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AppScreen } from '@/components/AppScreen';
 import { NoticeText } from '@/components/NoticeText';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { SurfaceCard } from '@/components/SurfaceCard';
 import { useAuth } from '@/context/useAuth';
 import { api, type AssistantChatMessage } from '@/lib/api';
+import { legalUrls } from '@/lib/legal';
 import { colors, radii, spacing } from '@/theme/tokens';
 
 type ChatMessage = {
@@ -90,6 +91,22 @@ export default function AssistantScreen() {
       <SurfaceCard>
         <Text style={styles.title}>SmartSplit AI</Text>
         <Text style={styles.subtitle}>Ask about friends, groups, expenses, or settlements.</Text>
+        <Text style={styles.notice}>
+          AI responses can be wrong or incomplete. Review balances, expenses, and settlement
+          decisions yourself before acting on them.
+        </Text>
+        <View style={styles.actions}>
+          <PrimaryButton
+            label="Support"
+            tone="ghost"
+            onPress={() => void Linking.openURL(legalUrls.support)}
+          />
+          <PrimaryButton
+            label="Privacy"
+            tone="ghost"
+            onPress={() => void Linking.openURL(legalUrls.privacy)}
+          />
+        </View>
       </SurfaceCard>
 
       {error ? <NoticeText tone="error" message={error} /> : null}
@@ -145,6 +162,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     fontSize: 14,
     color: colors.textMuted,
+  },
+  notice: {
+    marginTop: spacing.md,
+    fontSize: 13,
+    lineHeight: 20,
+    color: colors.textMuted,
+  },
+  actions: {
+    marginTop: spacing.md,
+    gap: spacing.sm,
   },
   thread: {
     gap: spacing.sm,
